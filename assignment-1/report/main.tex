@@ -1,0 +1,168 @@
+\documentclass[11pt, a4paper]{article}
+
+% Required packages as per strict LaTeX compilation guidelines
+\usepackage[a4paper, margin=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\setlist[itemize]{label=-}
+\usepackage[hidelinks]{hyperref}
+
+\begin{document}
+
+% ---------------------------------------------------------
+% TITLE PAGE
+% ---------------------------------------------------------
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    
+    {\LARGE \textbf{Lahore University of Management Sciences} \par}
+    \vspace{0.5cm}
+    {\Large Syed Babar Ali School of Science and Engineering \par}
+    
+    \vfill
+    
+    {\Large \textbf{AI651 --- Deep Learning for Space, Time and Graphs} \par}
+    \vspace{1cm}
+    {\Huge \textbf{Assignment 1 Report} \par}
+    
+    \vfill
+    
+    {\Large 
+        \textbf{Student Name:} Faaiz Khan \\[0.2cm]
+        \textbf{Student ID:} 25280051 
+    \par}
+    
+    \vspace{1.5cm}
+    
+    % REQUIREMENT: GitHub repository link MUST be on the first page.
+    {\large \textbf{GitHub Repository Link:}\\
+    \vspace{0.2cm}
+    \url{https://github.com/FaaizKhan1999/dl4stg-assignments} \par}
+    
+    \vspace*{2cm}
+\end{titlepage}
+% ---------------------------------------------------------
+
+% ---------------------------------------------------------
+% TASK 1
+% ---------------------------------------------------------
+\section*{Task 1 --- Forecasting Across Heterogeneous Sensors}
+
+\subsection*{0. The World and Forecasting Setup}
+
+\subsection*{Response 1A: Aggregate Ordering and Performance}
+\textit{[Before running Output 1.1, record your expected ordering of the four forecasters for both station populations. Then, quantify key performance differences across stations and products, revise your expectations, and explain the observed differences using the specific inductive biases/assumptions of each model.]}
+
+\subsection*{Response 1B: Context-Dependent Forecasting}
+\textit{[Using Output 1.2, explain why the single fitted matrix $\hat{W}$ must compromise when facing different paces. Identify this compromise in the forecast's phase or shape. Using Output 1.3, contrast the fixed operator with how Raw Attention's learned projections build context-specific value-mixing operations.]}
+
+\subsection*{Response 2: Separate Slow Structure from Repetition}
+\textit{[State your selected moving-average width $m$. Describe visual changes (Output 2.1) and empirical findings (Outputs 2.2 and 2.3). Explain why a moving average is a sensible inductive bias here, and describe one realistic situation where this filter would fail or propose a concrete alternative.]}
+
+\subsection*{Response 3: Mix by Temporal Delay}
+\textit{[Based on Output 3.2, report which lags show the strongest recurrence and how they relate to the run's actual period $P$. Explain why removing the slow drift makes delay evidence cleaner. Finally, describe one situation (e.g., an isolated transient) where delay mixing represents the wrong assumption.]}
+
+\subsection*{Response 4: Compare Designs and Deploy}
+\textbf{(a) Hypothesis:} \textit{[Predict, in at most two sentences, which upgrade (decomposition or delay mixing) should help most on contexts with prominent slow components, and explain why.]} \\
+
+\noindent\textbf{(b) Validation Results:} \textit{[Report the RMSE and MSE for the neural models and linear baselines based on Outputs 4.1 and 4.2. Compare the two architectural switches and summarize how errors evolve across the forecast horizon.]} \\
+
+\noindent\textbf{(c) Deployment Models:} \textit{[Identify and justify the best deployment model for the established stations (1-3) and for the held-out Station 4, balancing validation performance, parameters, and fitting time. (Limit: 200 words)]}
+
+% ---------------------------------------------------------
+% TASK 2
+% ---------------------------------------------------------
+\section*{Task 2: Leaderboard Challenge}
+
+\subsection*{Methodology and Architecture}
+\textit{[Discuss your data processing, feature engineering steps, and the structural design choices behind your Autoformer architecture. Provide the underlying intuition and reasoning that motivated your approach. Ensure you declare your final trainable parameter count (P) and number of training epochs (E) as submitted to the leaderboard.]}
+
+\subsection*{Ablation Study: Optional External Data}
+\textit{[As per Section 2.4, Requirement 4: Detail your ablation study showing the impact of the \texttt{optional\_external\_data.csv} features. Compare performance with and without this data, averaged across multiple random seeds, on your own chronological validation split.]}
+
+% ---------------------------------------------------------
+% OPTIONAL REFLECTIONS
+% ---------------------------------------------------------
+\subsection*{Optional Reflections (Q2.1 -- Q2.9)}
+\textit{[These reflection questions are not strictly compulsory for the grading rubric but are highly recommended to answer for comprehensive learning and exam preparation.]}
+
+\vspace{0.3cm}
+\noindent\textbf{Q2.1:} \textit{[Your answer comparing Auto-Correlation vs. Self-Attention biases and drifting periods.]}
+
+\vspace{0.3cm}
+\noindent\textbf{Q2.2:} \textit{[Your answer regarding the Autoformer moving average assumption, boundary behaviors, level shifts, and an alternative proposal.]}
+
+\vspace{0.3cm}
+\noindent\textbf{Q2.3:} \textit{[Your answer regarding interleaved vs. one-shot preprocessing decomposition.]}
+
+\vspace{0.3cm}
+\noindent\textbf{Q2.4:} \textit{[Your answer regarding the choice of $k = c \log L$ for aggregated delays and its interaction with true distinct periodicities.]}
+
+\vspace{0.3cm}
+\noindent\textbf{Q2.5:} \textit{[Your answer comparing one-shot versus autoregressive horizon generation formats.]}
+
+\vspace{0.3cm}
+\noindent\textbf{Q2.6:} \textit{[Your answer regarding what information is destroyed by window-relative normalization schemes.]}
+
+\vspace{0.3cm}
+\noindent\textbf{Q2.7:} \textit{[Your answer regarding optional variables known up to the origin vs. known across the horizon.]}
+
+\vspace{0.3cm}
+\noindent\textbf{Q2.8:} \textit{[Your answer regarding recovering periodic structure without explicit calendar timestamps.]}
+
+\vspace{0.3cm}
+\noindent\textbf{Q2.9:} \textit{[Your answer regarding the crossover point between structural time-series methods (SARIMA/ETS) and decomposition Transformers.]}
+
+% ---------------------------------------------------------
+% GENERATIVE AI USAGE (MANDATORY SECTION)
+% ---------------------------------------------------------
+\section*{Generative AI Usage}
+\textit{[As per the instructions on Page 1 of DL4STG-PA1.pdf, explicitly state your usage of generative AI tools. If you did not use any, state ``No Generative AI tools were used in the completion of this assignment.'']}
+
+\begin{itemize}
+    \item \textbf{Prompt Used:} \textit{[Insert the exact prompt you provided to the AI]}
+    \item \textbf{Output Received:} \textit{[Insert a brief summary of the output or the exact output snippet]}
+    \item \textbf{Edits Made:} \textit{[Explain how you adapted or modified the output for your final submission]}
+\end{itemize}
+
+% ---------------------------------------------------------
+% REFERENCES
+% ---------------------------------------------------------
+\begin{thebibliography}{9}
+\bibitem{autoformer} 
+Wu, Haixu, et al. 
+\textit{Autoformer: Decomposition Transformers with Auto-Correlation for Long-Term Series Forecasting}. 
+Advances in Neural Information Processing Systems, 2021.
+
+\bibitem{attention}
+Vaswani, Ashish, et al.
+\textit{Attention Is All You Need}.
+Advances in Neural Information Processing Systems, 2017.
+
+\bibitem{are_transformers_effective}
+Zeng, Ailing, et al.
+\textit{Are Transformers Effective for Time Series Forecasting?}
+AAAI Conference on Artificial Intelligence, 2023.
+
+\bibitem{fpp3}
+Hyndman, R.J., \& Athanasopoulos, G.
+\textit{Forecasting: Principles and Practice}.
+OTexts, 3rd edition, 2021.
+\end{thebibliography}
+
+% ---------------------------------------------------------
+% APPENDIX
+% ---------------------------------------------------------
+\appendix
+\section{Appendix}
+
+\subsection{Additional Plots and Data Visualizations}
+\textit{[Include any extra figures, diagnostics, or tables here that support your arguments in Task 1 or Task 2. Ensure all items are referenced clearly in the main text.]}
+
+\subsection{Supplementary Code Snippets}
+\textit{[While your full implementation must live in your public GitHub repository, you may include brief, critical code excerpts here if they are directly necessary to clarify a complex argument made in the report.]}
+
+\end{document}
+

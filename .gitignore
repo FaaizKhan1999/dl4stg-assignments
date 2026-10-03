@@ -1,4 +1,7 @@
 .venv/
+.ipynb_checkpoints/
+__pycache__/
+
 
 *.aux
 *.fdb_latexmk
@@ -6,3 +9,6 @@
 *.log
 *.out
 *.synctex.gz
+*.bbl
+
+*.DS_Store

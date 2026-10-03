@@ -3,10 +3,15 @@
 % Required packages as per strict LaTeX compilation guidelines
 \usepackage[a4paper, margin=2.5cm]{geometry}
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{booktabs}
 \usepackage{enumitem}
 \setlist[itemize]{label=-}
 \usepackage[hidelinks]{hyperref}
+\usepackage{parskip}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1em}
 
 \begin{document}
 
@@ -51,6 +56,36 @@
 \section*{Task 1 --- Forecasting Across Heterogeneous Sensors}
 
 \subsection*{0. The World and Forecasting Setup}
+
+I will use this section specifically to outline about what I interpret as the setup of the problem in this task, for my own understanding.
+
+There is a production line with 4 rotating production stations connected in series, labelled 1--4. Each station has one vibration accelerometer --- a physical sensor attached to the station to measure its physical movement in metres per second squared ($m/s^2$) --- sampled at 20 Hz, equivalent to 0.05 seconds per sample.
+
+While the samples are taken at the exact time intervals regularly, the readings itself are not exactly accurate and are the sum of three components:
+
+$$y_i(t) = b_i(t) + s_i(t) + \epsilon_i(t)$$
+
+The above equation is station $i$'s accelerometer reading at sample $t$. The components are as follows:
+
+\begin{itemize}
+  \item $b_i(t)$: The slowly varying baseline caused by load/control conditions and sensor calibration drift. These vary on a 12-second time-scale.
+  \item $s_i(t)$: The dominating, repeating physical vibration of the rotating station.
+  \item $\epsilon_i(t)$: The small, independent observation noise.
+\end{itemize}
+
+The time is divided into operating runs: 192 samples per run. The first run produces product A, the second produces product B, the third produce product C, and then the process repeats. Each product has a characteristic operating-speed range, or the period of its vibration: 14--18, 21--27, and 28--36 samples respectively. This means that the cycle durations are between 0.70--1.80 seconds. At the start of each run, some factors determine one actual period within the corresponding product's range, which is shared by all 4 stations for the duration of the run.
+
+For this task, the context length $L = 96$ and the forecast horizon $H = 48$. At forecast origin $t$, a model observes the previous $L$ readings and predicts the next $H$ readings.
+
+$$X_i = \{y_i(t - L), \hdots, y_i(t - 1)\} \in \mathbb{R}^L, \hat{Y}_i = \{\hat{y}_i(t), \hdots, \hat{y}_i(t + H - 1)\} \in \mathbb{R}^H$$
+
+The above would be the input and output sequences for station $i$. A forecast origin is only eligible if the entire context and target lie within an operating run: valid forcast origins for each run are from sample 96 to sample 144 (assuming zero-indexing).
+
+The data is split into a train-validation-test split out of a total of 15360 samples. Stations 1--3 are established stations whereas station 4 is held out and serves as the unseen-station test case.
+
+The last observed value in each context is used as the anchor which is subtracted from every sinlge sample within that window. This means that the last sample will be 0 and forces every window to end at 0, effectively deleting any long term calibration offsets. The anchored values are scaled by the reciprocal of a single, constant scale value which is determined at the start using training data from stations 1--3 (station 4 and the validation/test regions do not contribute to this scale). This normalizes the data and compresses the amplitude so the neural network receives standardized values. The predictions are then transformed back to physical units before evaluation.
+
+\subsection*{1. Context-Dependent Forecasting}
 
 \subsection*{Response 1A: Aggregate Ordering and Performance}
 \textit{[Before running Output 1.1, record your expected ordering of the four forecasters for both station populations. Then, quantify key performance differences across stations and products, revise your expectations, and explain the observed differences using the specific inductive biases/assumptions of each model.]}

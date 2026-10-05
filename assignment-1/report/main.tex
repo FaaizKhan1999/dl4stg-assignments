@@ -9,6 +9,7 @@
 \setlist[itemize]{label=-}
 \usepackage[hidelinks]{hyperref}
 \usepackage{parskip}
+\usepackage{graphicx}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1em}
@@ -79,125 +80,437 @@ For this task, the context length $L = 96$ and the forecast horizon $H = 48$. At
 
 $$X_i = \{y_i(t - L), \hdots, y_i(t - 1)\} \in \mathbb{R}^L, \hat{Y}_i = \{\hat{y}_i(t), \hdots, \hat{y}_i(t + H - 1)\} \in \mathbb{R}^H$$
 
-The above would be the input and output sequences for station $i$. A forecast origin is only eligible if the entire context and target lie within an operating run: valid forcast origins for each run are from sample 96 to sample 144 (assuming zero-indexing).
+The above would be the input and output sequences for station $i$. A forecast origin is only eligible if the entire context and target lie within an operating run: valid forecast origins for each run are from sample 96 to sample 144 (assuming zero-indexing).
 
 The data is split into a train-validation-test split out of a total of 15360 samples. Stations 1--3 are established stations whereas station 4 is held out and serves as the unseen-station test case.
 
-The last observed value in each context is used as the anchor which is subtracted from every sinlge sample within that window. This means that the last sample will be 0 and forces every window to end at 0, effectively deleting any long term calibration offsets. The anchored values are scaled by the reciprocal of a single, constant scale value which is determined at the start using training data from stations 1--3 (station 4 and the validation/test regions do not contribute to this scale). This normalizes the data and compresses the amplitude so the neural network receives standardized values. The predictions are then transformed back to physical units before evaluation.
+The last observed value in each context is used as the anchor which is subtracted from every single sample within that window. This means that the last sample will be 0 and forces every window to end at 0, effectively deleting any long term calibration offsets. The anchored values are scaled by the reciprocal of a single, constant scale value which is determined at the start using training data from stations 1--3 (station 4 and the validation/test regions do not contribute to this scale). This normalizes the data and compresses the amplitude so the neural network receives standardized values. The predictions are then transformed back to physical units before evaluation.
 
 \subsection*{1. Context-Dependent Forecasting}
 
-\subsection*{Response 1A: Aggregate Ordering and Performance}
-\textit{[Before running Output 1.1, record your expected ordering of the four forecasters for both station populations. Then, quantify key performance differences across stations and products, revise your expectations, and explain the observed differences using the specific inductive biases/assumptions of each model.]}
+\subsubsection*{Response 1A}
 
-\subsection*{Response 1B: Context-Dependent Forecasting}
-\textit{[Using Output 1.2, explain why the single fitted matrix $\hat{W}$ must compromise when facing different paces. Identify this compromise in the forecast's phase or shape. Using Output 1.3, contrast the fixed operator with how Raw Attention's learned projections build context-specific value-mixing operations.]}
+\textbf{Expected Ordering (Predicted)} \\
+Before observing the data, I would (perhaps naively) expect the ordering for the established stations to be: Raw Attention $\approx$ Period-Routed Ridge $>$ Sensor-Specific Ridge $>$ Shared Ridge. For the held-out Station 4, my expectation was: Raw Attention $\approx$ Period-Routed Ridge $>$ Shared Ridge (with Sensor-Specific Ridge being unavailable). This expectation assumes that Raw Attention's dynamic value-mixing would parallel or exceed explicit period routing, and that station identity might offer a slight performance edge over a globally shared linear map.
 
-\subsection*{Response 2: Separate Slow Structure from Repetition}
-\textit{[State your selected moving-average width $m$. Describe visual changes (Output 2.1) and empirical findings (Outputs 2.2 and 2.3). Explain why a moving average is a sensible inductive bias here, and describe one realistic situation where this filter would fail or propose a concrete alternative.]}
+\textbf{Measurements and Revised Ordering} \\
+The empirical results necessitate a revised ordering: Period-Routed Ridge $\gg$ Raw Attention $\gg$ Shared Ridge $\approx$ Sensor-Specific Ridge.
 
-\subsection*{Response 3: Mix by Temporal Delay}
-\textit{[Based on Output 3.2, report which lags show the strongest recurrence and how they relate to the run's actual period $P$. Explain why removing the slow drift makes delay evidence cleaner. Finally, describe one situation (e.g., an isolated transient) where delay mixing represents the wrong assumption.]}
+\begin{table}[h]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lrrrrrrrrrrrr}
+\toprule
+model & \shortstack{est. stations\\RMSE ($m/s^2$)} & \shortstack{est. stations\\MSE ($m/s^2$)$^2$} & \shortstack{est. stations,\\Prod A RMSE} & \shortstack{est. stations,\\Prod B RMSE} & \shortstack{est. stations,\\Prod C RMSE} & \shortstack{Station 4\\RMSE ($m/s^2$)} & \shortstack{Station 4\\MSE ($m/s^2$)$^2$} & \shortstack{Station 4,\\Prod A RMSE} & \shortstack{Station 4,\\Prod B RMSE} & \shortstack{Station 4,\\Prod C RMSE} & parameters & fit sec \\
+\midrule
+Shared ridge & 0.767 & 0.588 & 0.805 & 0.854 & 0.621 & 0.876 & 0.767 & 0.909 & 0.982 & 0.713 & 4608 & 0.003 \\
+Sensor-specific & 0.768 & 0.590 & 0.804 & 0.852 & 0.630 & unavailable & unavailable & unavailable & unavailable & unavailable & 13824 & 0.076 \\
+Period-routed & 0.166 & 0.028 & 0.181 & 0.164 & 0.152 & 0.173 & 0.030 & 0.184 & 0.182 & 0.150 & 59904 & 0.014 \\
+Raw Attention & 0.440 & 0.194 & 0.427 & 0.469 & 0.423 & 0.655 & 0.429 & 0.667 & 0.639 & 0.658 & 368368 & 79.680 \\
+\bottomrule
+\end{tabular}
+}
+\caption{Validation performance across forecasting models.}
+\end{table}
 
-\subsection*{Response 4: Compare Designs and Deploy}
-\textbf{(a) Hypothesis:} \textit{[Predict, in at most two sentences, which upgrade (decomposition or delay mixing) should help most on contexts with prominent slow components, and explain why.]} \\
+Key performance differences based on the results:
+\begin{itemize}
+    \item \textbf{Period-Routed Ridge} dominates, achieving an RMSE of 0.166 on established stations and maintaining robust generalization on the held-out station (0.173 RMSE). 
+    \item \textbf{Raw Attention} trails considerably. While it easily beats the fixed linear models on established stations (0.440 RMSE), it suffers a significant generalization gap on the unseen Station 4 (0.655 RMSE).
+    \item \textbf{Shared Ridge and Sensor-Specific Ridge} perform equally poorly on established stations (RMSE 0.767 vs 0.768) and struggle the most across the board, particularly on Product B.
+\end{itemize}
 
-\noindent\textbf{(b) Validation Results:} \textit{[Report the RMSE and MSE for the neural models and linear baselines based on Outputs 4.1 and 4.2. Compare the two architectural switches and summarize how errors evolve across the forecast horizon.]} \\
+\textbf{Explanations based on Model Assumptions} \\
+The performance spread directly reflects the inductive biases of each model:
+\begin{itemize}
+    \item \textbf{Shared Ridge} assumes one context-to-future map fits every window. It fails heavily because a single fitted operator cannot apply the correct phase advance across the varying operating paces of Products A, B, and C.
+    \item \textbf{Sensor-Specific Ridge} assumes windows differ mainly by which station produced them. Its failure to improve upon Shared Ridge proves that the variance within a station over time (due to changing operating runs) completely overrides static differences between stations.
+    \item \textbf{Period-Routed Ridge} correctly assumes that operating pace is the determining factor. By estimating the period and explicitly matching it to a hand-crafted pace band, it applies the exact necessary inductive bias for this physical setup, resulting in its superior performance.
+    \item \textbf{Raw Attention} assumes that how positions should be compared can be computed from the window itself without explicit feature engineering. However, attempting to simultaneously model the 240-sample slow drift and discover the 14-to-36-sample repeating cycle from raw data proves difficult. Lacking explicit structural separation, it underperforms against the perfectly-routed linear model and overfits to the established stations.
+\end{itemize}
 
-\noindent\textbf{(c) Deployment Models:} \textit{[Identify and justify the best deployment model for the established stations (1-3) and for the held-out Station 4, balancing validation performance, parameters, and fitting time. (Limit: 200 words)]}
+\subsubsection*{Response 1B}
+
+\textbf{The Compromise of Fixed Linear Rules} \\
+As shown in Output 1.2, Station 1 operates at drastically different paces depending on the active product run: approximately 16.1 samples for Product A and 30.1 samples for Product C. However, the Shared Ridge forecaster relies on a single, fixed matrix $\hat{W}$ fitted across all training windows. Because this operator is never adapted to the specific context it faces at inference time, it must find a "one-size-fits-all" transformation that minimizes error across all possible operating paces simultaneously.
+
+I can clearly observe the physical manifestation of this compromise in the forecast's shape and phase (Figure \ref{fig:1.2-1}). Looking at the forecast plots for Station 1, the Shared Ridge prediction for the fast-paced Product A is completely out of phase and its amplitude is heavily dampened. It predicts a slower, "middle-ground" wave that completely misses the rapid peaks. Similarly, for the slower Product C, the Shared Ridge forecast fails to stretch to the true 30-sample period, predicting peaks where troughs should be. The model essentially averages out the different frequencies it encountered during training, resulting in a static forecast shape that accurately tracks neither the fast nor the slow periods.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{../task-1/results/1.2-1.pdf}
+    \caption{Forecasts for Station 1 under Product A and Product C operating runs.}
+    \label{fig:1.2-1}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rlrlr}
+\toprule
+station & product & actual period (samples) & model & win. RMSE (m/s²) \\
+\midrule
+1 & Product A & 16.135 & Shared ridge & 0.779 \\
+1 & Product A & 16.135 & Sensor-specific ridge & 0.787 \\
+1 & Product A & 16.135 & Period-routed ridge & 0.232 \\
+1 & Product A & 16.135 & Raw Attention & 0.300 \\
+1 & Product C & 30.093 & Shared ridge & 0.448 \\
+1 & Product C & 30.093 & Sensor-specific ridge & 0.436 \\
+1 & Product C & 30.093 & Period-routed ridge & 0.150 \\
+1 & Product C & 30.093 & Raw Attention & 0.146 \\
+\bottomrule
+\end{tabular}
+\caption{Model performance on contrasting contexts for Station 1.}
+\end{table}
+
+\textbf{Dynamic Value-Mixing via Attention} \\
+In contrast, Raw Attention allows the mixing rule to depend on the context. While the projection matrices $W_Q, W_K,$ and $W_V$ are learned once and frozen, they are multiplied by the current input context $X$ to generate the queries and keys ($Q = XW_Q, K = XW_K$). Consequently, the attention weights---which are based on the $QK^\top$ pair scores---are actively recomputed for every new window. 
+
+This dynamic behavior is evident in Figure \ref{fig:1.3-1}. When I compare the Attention map for Product A against Product C, the activation patterns are drastically different, exhibiting a maximum weight difference of 0.372. Even though both contexts passed through the exact same $W_Q, W_K,$ and $W_V$ projections, the differing input signals $X$ caused the model to construct an entirely different value-mixing operation for the Product A window compared to the Product C window.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{../task-1/results/1.3-1.pdf}
+    \caption{Attention maps and weight differences for Product A vs. Product C.}
+    \label{fig:1.3-1}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rlrrr}
+\toprule
+station & product & samples & mean $|$Atten. W diff$|$ & max $|$Attn. W diff$|$ \\
+\midrule
+1 & Product A & 16.135 & unavailable & unavailable \\
+1 & Product C & 30.093 & unavailable & unavailable \\
+1 & Difference & unavailable & 0.012 & 0.372 \\
+\bottomrule
+\end{tabular}
+\caption{Attention weight differences between Product A and Product C contexts.}
+\end{table}
+
+This stands in stark contrast to the Shared Ridge model, which rigidly applies the exact same operator $\hat{W}$ regardless of the input data. It is important to note, however, that these differing attention maps do not necessarily prove that the model has successfully recovered the true physical period of the machinery; they simply confirm that the Attention architecture's mixing weights are inherently dependent on the input context.
+
+\subsection*{2. Separate Slow Structure from Repetition}
+
+\subsubsection*{Response 2}
+
+\textbf{Selected Width and Observed Changes} \\
+I implemented the centered moving-average decomposition and selected a window width of 41. 
+
+Visually, Figure \ref{fig:2.1-1} shows how the choice of width alters the separated components. As I increase the width from 17 to 41, the trend line (moving average) becomes noticeably smoother. A narrow width like 17 tracks the signal too closely, accidentally absorbing the fast mechanical vibration into the slow trend. By using the wider width of 41, the filter successfully ignores the rapid 14--36 sample cycles. Consequently, the extracted residual (the repeating component) becomes much sharper and cleaner. This clarity is confirmed in the third plot of Figure \ref{fig:2.1-1}, where the decomposed signal using width 41 produces a massive, focused spike exactly at the actual product period of 32.0 samples, whereas the raw context's signal is muddy and unfocused.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{../task-1/results/2.1-1.pdf}
+    \caption{Visual impact of varying moving-average widths on the trend and residual components.}
+    \label{fig:2.1-1}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrr}
+\toprule
+width & selected & residual std (m/s²) & trend range (m/s²) \\
+\midrule
+17 & False & 0.578 & 8.768 \\
+25 & False & 1.012 & 8.037 \\
+33 & False & 1.372 & 8.076 \\
+41 & True & 1.572 & 8.280 \\
+\bottomrule
+\end{tabular}
+\caption{Candidate trend widths and their signal statistics.}
+\end{table}
+
+Empirically, this visual improvement translates directly to better metric recovery. Table \ref{tbl:2.2} and Figure \ref{fig:2.2-1} demonstrate that width 41 achieves the highest oracle recovery score (0.998) within one sample. Furthermore, introducing this decomposition drastically improves the Raw Attention model. On the held-out station (Station 4), RMSE for Product A drops from 0.667 (Raw Attention) to 0.394 (Attention + decomposition), showing that separating the slow ramp from the fast vibration closes the generalization gap and helps the model avoid overfitting to the established stations.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.8\textwidth]{../task-1/results/2.2-1.pdf}
+    \caption{Oracle diagnostic comparing period recovery across candidate widths.}
+    \label{fig:2.2-1}
+\end{figure}
+
+Furthermore, introducing this decomposition drastically improves the Raw Attention model. On the held-out station (Station 4), RMSE for Product A drops from 0.667 (Raw Attention) to 0.394 (Attention + decomposition), showing that separating the slow ramp from the fast vibration closes the generalization gap and helps the model avoid overfitting to the established stations. Figure \ref{fig:2.3-1} visualizes this exact comparison for Station 4's Product B runs: in the highest-gain context, Raw Attention completely misses the phase and amplitude, while the decomposed model accurately tracks the ground truth.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{../task-1/results/2.3-1.pdf}
+    \caption{Visualizing the forecast improvement on held-out Station 4 (Product B) after applying decomposition.}
+    \label{fig:2.3-1}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+representation & oracle recovery within one sample & median absolute period error & selected \\
+\midrule
+raw & 0.687 & 0.525 & False \\
+width 17 & 0.980 & 0.157 & False \\
+width 25 & 0.989 & 0.122 & False \\
+width 33 & 0.993 & 0.142 & False \\
+width 41 & 0.998 & 0.216 & True \\
+\bottomrule
+\end{tabular}
+\caption{Oracle recovery metrics for candidate representations.}
+\label{tbl:2.2}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lllrrr}
+\toprule
+model & population & product & MSE & RMSE (m/s²) & MAE (m/s²) \\
+\midrule
+Raw Attention & established & Product A & 0.182 & 0.427 & 0.320 \\
+Raw Attention & established & Product B & 0.220 & 0.469 & 0.349 \\
+Raw Attention & established & Product C & 0.179 & 0.423 & 0.315 \\
+Raw Attention & held-out & Product A & 0.444 & 0.667 & 0.511 \\
+Raw Attention & held-out & Product B & 0.409 & 0.639 & 0.476 \\
+Raw Attention & held-out & Product C & 0.433 & 0.658 & 0.497 \\
+Attention + decomposition & established & Product A & 0.091 & 0.301 & 0.227 \\
+Attention + decomposition & established & Product B & 0.132 & 0.364 & 0.267 \\
+Attention + decomposition & established & Product C & 0.080 & 0.282 & 0.211 \\
+Attention + decomposition & held-out & Product A & 0.155 & 0.394 & 0.303 \\
+Attention + decomposition & held-out & Product B & 0.285 & 0.534 & 0.400 \\
+Attention + decomposition & held-out & Product C & 0.202 & 0.449 & 0.345 \\
+\bottomrule
+\end{tabular}
+}
+\caption{Validation performance ablation: Raw Attention vs. Attention with decomposition.}
+\end{table}
+
+\textbf{The Inductive Bias of Moving Averages} \\
+A moving average is a highly sensible inductive bias for this specific problem because it directly mirrors the physical reality of the production line. We know the signal consists of a slow 12-second drift (240 samples) overlaid with a rapid 0.7-to-1.8-second vibration (14--36 samples). The moving average acts as a low-pass filter, explicitly forcing the neural network to view the slow baseline and the fast recurring cycles separately rather than demanding it untangle a single, messy composite signal. 
+
+The training-only oracle diagnostic is crucial here because the model is only ever fed the combined, noisy signal $y_i(t)$. Without the oracle, we would simply be guessing the width $m$ based on downstream loss. By using the known synthetic period during training, the oracle directly measures how well our chosen width isolates the true underlying frequency, allowing for a targeted hyperparameter choice.
+
+\textbf{Limitations of this Bias} \\
+This specific inductive bias would fail if the sensor experienced an abrupt, instantaneous level shift---such as a sudden physical shock to the machine or a hard reset of the sensor calibration. A centered moving average assumes that the baseline changes smoothly over time. If it encounters a sudden step-change, the fixed-width averaging window will smear that sharp jump into a gradual slope, corrupting both the extracted trend and the residual vibration signal.
+
+\subsection*{3. Mix by Temporal Delay}
+
+\subsubsection*{Response 3}
+
+\textbf{Implementation and Verification} \\
+I implemented the \texttt{aggregate\_delays} function and confirmed its correctness using Output 3.1. The FFT-based delay scores identically matched the direct circular correlation calculations on the small worked example.
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrr}
+\toprule
+delay & delay\_scores (FFT) & direct circular correlation \\
+\midrule
+0 & 4.000 & 4.000 \\
+1 & -4.000 & -4.000 \\
+2 & 4.000 & 4.000 \\
+3 & -4.000 & -4.000 \\
+\bottomrule
+\end{tabular}
+\caption{Verification of FFT-based delay scoring against direct calculation.}
+\end{table}
+
+\textbf{Signal-Level Recurrence and Lags} \\
+As seen in the third plot of Figure \ref{fig:3.2-1} and in Table \ref{tbl:3.2}, the strongest recurrences occur at delays of 16 and 32 samples. These lag peaks align almost exactly with the operating run's actual physical period ($1P \approx 16.1$ samples) and its first integer multiple ($2P \approx 32.3$ samples).
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{../task-1/results/3.2-1.pdf}
+    \caption{Signal-level recurrence diagnostics demonstrating correlation peaks at integer multiples of the physical period.}
+    \label{fig:3.2-1}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rlrrr}
+\toprule
+station & product & expected delay & nearest integer delay & residual signal correlation \\
+\midrule
+2 & Product A & 16.135 & 16 & 0.896 \\
+2 & Product A & 32.269 & 32 & 0.897 \\
+\bottomrule
+\end{tabular}
+\caption{Correlation peaks mapped to the expected operating period.}
+\label{tbl:3.2}
+\end{table}
+
+\textbf{The Benefit of Decomposition} \\
+Decomposing the context first makes the delay evidence significantly cleaner. The raw signal is heavily dominated by the slow baseline drift; because a slow ramp remains numerically similar to itself across many shifts, the raw signal correlation forms a wide, uninformative hump. By removing this trend, the circular correlation operates exclusively on the cyclical vibration, producing sharp, obvious peaks at the correct lags. This strongly supports the delay mixer's inductive bias, as it allows the model to easily identify and aggregate information from these distinct, highly-correlated shifted periods without being confused by the underlying drift.
+
+\textbf{Limitations of Delay Mixing} \\
+The assumption that useful temporal relationships are organized by recurring displacements fails when dealing with an isolated transient event, such as a sudden, one-off mechanical shock. Because a transient event happens only once, it has no cyclical spacing and does not repeat. A delay mixer, which constructs forecasts by looking back at fixed lag intervals and adding shifted copies of the sequence, would either entirely miss the isolated event or erroneously duplicate the random shock across the forecast horizon at repeating intervals.
+
+\subsection*{4. Compare Designs and Deploy}
+
+\subsubsection*{Response 4}
+
+\textbf{(a) Hypothesis} \\
+I predict that the decomposition upgrade will help the most on contexts where the slow component is especially prominent. A large baseline drift dominates the numerical values of the window, making it difficult for any mixer to isolate the much smaller repeating cycles unless that smooth ramp is explicitly stripped away first.
+
+\textbf{(b) Validation Performance and Model Comparison} \\
+Table \ref{tbl:4.1} details the performance of the four neural models. On the established stations, the linear baseline Period-routed ridge achieves an exceptional RMSE of 0.166 and MSE of 0.028. In contrast, Raw Attention struggles with an RMSE of 0.440 and MSE of 0.194. 
+
+Testing the two architectural switches reveals that both independently help. Swapping to a decomposed representation improves the established RMSE to 0.318, while switching to the delay mixer improves it even more to 0.226. Combining both upgrades into the Autoformer-inspired model yields the best neural performance (0.197 RMSE, 0.039 MSE). However, the gains from the two switches do not perfectly stack; because both upgrades target aspects of the same drift-plus-repetition structure, their benefits partially overlap. 
+
+Figure \ref{fig:4.1-1} visualizes these improvements, showing how the Autoformer-inspired model corrects the phase and amplitude errors that plague Raw Attention. 
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{../task-1/results/4.1-1.pdf}
+    \caption{Contrasting forecast cases showing the largest combined-model gain and loss.}
+    \label{fig:4.1-1}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lrrrrrrrrrrrr}
+\toprule
+model & \shortstack{est. stat.\\RMSE} & \shortstack{est. stat.\\MSE} & \shortstack{est.,\\Prod A} & \shortstack{est.,\\Prod B} & \shortstack{est.,\\Prod C} & \shortstack{Stat. 4\\RMSE} & \shortstack{Stat. 4\\MSE} & \shortstack{Stat. 4,\\Prod A} & \shortstack{Stat. 4,\\Prod B} & \shortstack{Stat. 4,\\Prod C} & params & fit sec \\
+\midrule
+Raw Attention & 0.440 & 0.194 & 0.427 & 0.469 & 0.423 & 0.655 & 0.429 & 0.667 & 0.639 & 0.658 & 368368 & 79.680 \\
+Raw delay mixer & 0.226 & 0.051 & 0.210 & 0.212 & 0.254 & 0.329 & 0.108 & 0.390 & 0.278 & 0.309 & 368370 & 92.133 \\
+Attention + decomp & 0.318 & 0.101 & 0.301 & 0.364 & 0.282 & 0.462 & 0.214 & 0.394 & 0.534 & 0.449 & 373024 & 89.982 \\
+Autoformer-inspired & 0.197 & 0.039 & 0.222 & 0.181 & 0.185 & 0.244 & 0.059 & 0.275 & 0.219 & 0.234 & 373026 & 107.976 \\
+\bottomrule
+\end{tabular}
+}
+\caption{Validation performance comparison for the four neural architectures.}
+\label{tbl:4.1}
+\end{table}
+
+Regarding the forecast horizon, Figure \ref{fig:4.2-1} demonstrates that RMSE increases for all models as predictions step further into the future. However, the error accumulation is steepest for Raw Attention, whereas the Period-routed ridge and Autoformer-inspired models maintain much flatter and more stable error curves across the 48-step horizon.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{../task-1/results/4.2-1.pdf}
+    \caption{Horizon errors demonstrating error accumulation over the 48-step prediction window.}
+    \label{fig:4.2-1}
+\end{figure}
+
+\textbf{(c) Deployment Selection} \\
+For both the established stations and the held-out Station 4, I select the \textbf{Period-routed ridge} model for deployment. 
+
+While the Autoformer-inspired architecture represents a massive structural improvement over Raw Attention, it still fails to beat the explicitly programmed linear baseline. Period-routed ridge achieves the lowest validation RMSE globally (0.166 on established, 0.173 on held-out). Crucially, it accomplishes this using only 59,904 parameters and a nearly instantaneous 0.014-second fitting time, compared to the Autoformer-inspired model's bloated 373,026 parameters and 107-second training time. Providing the exact right inductive bias explicitly—by routing periods to tailored matrices—computationally and predictively dominates a flexible, heavily parameterized neural architecture for this specific physical system.
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{llrrrr}
+\toprule
+population & model & val. MSE & val. RMSE & test MSE & test RMSE \\
+\midrule
+established & Period-routed ridge & 0.028 & 0.166 & 0.026 & 0.161 \\
+held-out & Period-routed ridge & 0.030 & 0.173 & 0.033 & 0.183 \\
+\bottomrule
+\end{tabular}
+\caption{Final selected deployment models and their test results.}
+\end{table}
 
 % ---------------------------------------------------------
 % TASK 2
 % ---------------------------------------------------------
-\section*{Task 2: Leaderboard Challenge}
+\section*{Task 2 --- Leaderboard Challenge}
 
-\subsection*{Methodology and Architecture}
-\textit{[Discuss your data processing, feature engineering steps, and the structural design choices behind your Autoformer architecture. Provide the underlying intuition and reasoning that motivated your approach. Ensure you declare your final trainable parameter count (P) and number of training epochs (E) as submitted to the leaderboard.]}
+\subsection*{Methodology and Autoformer Architecture}
+
+The core forecasting engine utilizes the Autoformer architecture, originally proposed by Wu et al. (2021) in \textit{Autoformer: Decomposition Transformers with Auto-Correlation for Long-Term Series Forecasting}. Unlike standard Transformers which rely on self-attention to calculate pointwise dependencies, the Autoformer is specifically designed with an inductive bias for time-series forecasting. It abandons vanilla self-attention in favor of an Auto-Correlation mechanism, which discovers sub-series level connections by measuring temporal delays and aggregating similar historical segments. 
+
+To address the high volatility and specific temporal dynamics of the dataset, several critical structural modifications were implemented on top of the base architecture:
+
+\begin{itemize}
+    \item \textbf{Series Decomposition:} Following the original paper, the architecture employs a SeriesDecomposition block utilizing a centered moving-average filter to split the input sequence into a slow-moving trend and a cyclical remainder (seasonal) stream. This decomposition is interleaved throughout both the encoder and decoder layers, allowing the network to isolate and progressively accumulate the trend while utilizing the Auto-Correlation mixer exclusively on the repeating seasonal patterns.
+    
+    \item \textbf{Reversible Instance Normalization (RevIN):} To handle the massive baseline shifts and heavy-tailed nature of the data, the model incorporates \texttt{RevIN} (Kim et al., 2022). This mechanism normalizes the target channel of each input window independently to a zero-mean, unit-variance distribution before processing. After the decoder predicts the forecast horizon, the exact inverse transformation is applied to restore the original physical scale. To ensure numerical stability on completely flat, quiet context windows, a variance epsilon factor ($\epsilon=1e-5$) was enforced strictly inside the standard deviation calculation.
+    
+    \item \textbf{Continuous Cyclic Auto-Correlation:} The AutoCorrelationMixer replaces standard multi-head attention. It computes temporal delays via Fast Fourier Transforms (FFT) in $O(L \log L)$ time. A critical architectural fix was required in the cross-attention block: rather than padding the encoder's shorter output sequence with zeros, the aggregate\_delays function applies a modulo operator over the unpadded encoder length. This enforces a continuous, repeating cyclic sample for the future horizon, preventing the decoder from gathering empty zero-tensors that previously caused the model to collapse to the context mean.
+    
+    \item \textbf{Progressive Trend Accumulation \& Covariate Injection:} The decoder utilizes progressive trend accumulation across its sub-layers. It takes the last observed trend value from the context window as its initialization anchor, avoiding artificial baseline boundary drops. Furthermore, known future covariates (the binary regime indicators and \texttt{feature\_D}) are linearly projected and injected directly into the decoder's embedding space at the corresponding horizon positions, providing explicit temporal conditioning.
+\end{itemize}
+
+The final deployed model utilized a context length of 336, a model dimension of 32 with 4 attention heads, 2 encoder layers, and 1 decoder layer, yielding a total trainable parameter count ($P$) of 69,383. This specific configuration was trained for 15 epochs using MSE loss to maximize stability against the heavy-tailed variance before early stopping triggered.
+
+\subsection*{Exploratory Data Analysis (EDA)}
+
+Data exploration revealed that the target variable is highly volatile and heavy-tailed, characterized by sudden, massive spikes interspersed with flatter baseline periods. As illustrated in Figure \ref{fig:target_dist}, the raw series exhibits sudden level shifts where the amplitude drastically increases before returning to a quiet state.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{../task-2/results/eda_target_distribution.png}
+    \caption{Target series depicting a highly volatile, heavy-tailed distribution with massive sudden spikes.}
+    \label{fig:target_dist}
+\end{figure}
+
+Analyzing the temporal dynamics, the Autocorrelation (ACF) and Partial Autocorrelation (PACF) plots (Figure \ref{fig:acf_pacf}) confirmed an underlying periodic structure. The ACF shows a clear, repeating wave pattern indicative of cyclicity. However, the PACF cuts off sharply after the first few lags, indicating that traditional autoregressive modeling requires careful handling of these dependencies to capture the cyclical nature without overfitting to immediate past values.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{../task-2/results/eda_autocorrelation.png}
+    \caption{ACF and PACF plots confirming the periodic structure and sharp lag cutoffs.}
+    \label{fig:acf_pacf}
+\end{figure}
+
+To identify external signals that might predict these spikes, an analysis of the provided covariates was conducted. As shown in Figure \ref{fig:binary_indicators}, the binary indicators (\texttt{feature\_G} through \texttt{feature\_J}) clearly delineate distinct operational regimes, often aligning precisely with the timing of the massive target spikes. 
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{../task-2/results/eda_binary_indicators.png}
+    \caption{Target value highlighted by binary indicators, showing distinct operational regimes that align with high-volatility spikes.}
+    \label{fig:binary_indicators}
+\end{figure}
+
+Furthermore, the linear correlation heatmap (Figure \ref{fig:continuous_corr}) demonstrated that while continuous features like \texttt{feature\_A}, \texttt{feature\_B}, and \texttt{feature\_C} are highly collinear with one another (correlation up to 0.82), they exhibit near-zero correlation with the target variable (ranging between -0.09 and 0.17). Conversely, \texttt{feature\_D} displayed the strongest linear relationship with the target at -0.24. This guided the feature engineering strategy to strip redundant, collinear noise and focus on the high-signal binary indicators alongside \texttt{feature\_D}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{../task-2/results/eda_continuous_indicators.png}
+    \caption{Linear correlation heatmap revealing high collinearity among features A, B, and C, and the stronger target correlation of feature D.}
+    \label{fig:continuous_corr}
+\end{figure}
 
 \subsection*{Ablation Study: Optional External Data}
-\textit{[As per Section 2.4, Requirement 4: Detail your ablation study showing the impact of the \texttt{optional\_external\_data.csv} features. Compare performance with and without this data, averaged across multiple random seeds, on your own chronological validation split.]}
 
-% ---------------------------------------------------------
-% OPTIONAL REFLECTIONS
-% ---------------------------------------------------------
-\subsection*{Optional Reflections (Q2.1 -- Q2.9)}
-\textit{[These reflection questions are not strictly compulsory for the grading rubric but are highly recommended to answer for comprehensive learning and exam preparation.]}
+To empirically validate the EDA findings, an ablation study was conducted to evaluate different covariate configurations using a chronological validation split. The results, summarized in Table \ref{tab:ablation_results}, clearly demonstrate the impact of feature selection on model accuracy.
 
-\vspace{0.3cm}
-\noindent\textbf{Q2.1:} \textit{[Your answer comparing Auto-Correlation vs. Self-Attention biases and drifting periods.]}
+\begin{table}[htbp]
+    \centering
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Covariate Configuration} & \textbf{Val. RMSE} & \textbf{Val. MAE} & \textbf{Val. sMAPE (\%)} \\
+        \midrule
+        \texttt{none} & 103.29 & 71.80 & 79.18 \\
+        \texttt{binary} & 100.68 & 68.25 & 78.18 \\
+        \texttt{binary\_and\_d} & 98.50 & 67.05 & 75.82 \\
+        \texttt{feature\_d} & 97.47 & 68.22 & 79.50 \\
+        \texttt{all} & 95.24 & 65.15 & 75.83 \\
+        \bottomrule
+    \end{tabular}
+    \caption{Ablation study results across different covariate configurations (averaged across 3 random seeds).}
+    \label{tab:ablation_results}
+\end{table}
 
-\vspace{0.3cm}
-\noindent\textbf{Q2.2:} \textit{[Your answer regarding the Autoformer moving average assumption, boundary behaviors, level shifts, and an alternative proposal.]}
+The baseline model utilizing no covariates (\texttt{none}) performed the poorest with an RMSE of 103.29. Introducing just the binary features (\texttt{binary}) or just \texttt{feature\_D} (\texttt{feature\_d}) improved the RMSE to 100.68 and 97.47, respectively. Combining them (\texttt{binary\_and\_d}) yielded an RMSE of 98.50. 
 
-\vspace{0.3cm}
-\noindent\textbf{Q2.3:} \textit{[Your answer regarding interleaved vs. one-shot preprocessing decomposition.]}
+Ultimately, providing the model with \texttt{all} covariates produced the lowest validation RMSE of 95.24. While the \texttt{all} configuration achieved the best raw error, the ablation confirmed the EDA hypothesis: the vast majority of the predictive signal is captured by the binary regime indicators and \texttt{feature\_D}. This provided a clear understanding of the data's predictive ceiling, allowing for a deliberate trade-off between predictive accuracy and parameter penalty in the final leaderboard submissions.
 
-\vspace{0.3cm}
-\noindent\textbf{Q2.4:} \textit{[Your answer regarding the choice of $k = c \log L$ for aggregated delays and its interaction with true distinct periodicities.]}
+\subsection*{Score Optimization and Leaderboard Submissions}
 
-\vspace{0.3cm}
-\noindent\textbf{Q2.5:} \textit{[Your answer comparing one-shot versus autoregressive horizon generation formats.]}
+The competitive leaderboard penalizes parameter count ($P$), but the scoring formula heavily prioritizes raw RMSE. Therefore, the optimization strategy focused primarily on structural architectural improvements rather than arbitrarily limiting model capacity. This progression is reflected in the three main submissions:
 
-\vspace{0.3cm}
-\noindent\textbf{Q2.6:} \textit{[Your answer regarding what information is destroyed by window-relative normalization schemes.]}
-
-\vspace{0.3cm}
-\noindent\textbf{Q2.7:} \textit{[Your answer regarding optional variables known up to the origin vs. known across the horizon.]}
-
-\vspace{0.3cm}
-\noindent\textbf{Q2.8:} \textit{[Your answer regarding recovering periodic structure without explicit calendar timestamps.]}
-
-\vspace{0.3cm}
-\noindent\textbf{Q2.9:} \textit{[Your answer regarding the crossover point between structural time-series methods (SARIMA/ETS) and decomposition Transformers.]}
+\begin{itemize}
+    \item \textbf{Attempt 1 (RMSE: 116.43, $P$: 7,938, $E$: 4):} The initial Autoformer setup collapsed to predicting a nearly flat line near the median. This was driven by a zero-padding bug in the cross-attention mechanism, where the decoder gathered empty zero-tensors for the future horizon, and the $L_1$ loss mathematically forced the model to seek the median of the heavy-tailed distribution rather than tracking the high-variance spikes.
+    \item \textbf{Attempt 2 (RMSE: 94.83, $P$: 57,863, $E$: 17):} To address the collapse, the cross-attention \texttt{aggregate\_delays} function was corrected to apply a modulo operator over the unpadded encoder length, ensuring a continuous, repeating cyclic sample. Additionally, numerical stability was introduced to the RevIN module by placing the epsilon term strictly inside the variance calculation, preventing floating-point noise explosions on completely flat context windows. These mathematical fixes, alongside an increase in model dimension ($d_{model}=32$) as well as switching the loss to MSE, allowed the model to actively track the spikes, dropping the RMSE by over 21 points.
+    \item \textbf{Attempt 3 (RMSE: 78.06, $P$: 69,383, $E$: 15):} The final optimization targeted the temporal bottleneck. Time-series models utilizing Fast Fourier Transforms require sufficient historical lookback to resolve frequencies effectively. The context window was expanded from 96 to 336 steps (double the 168-step horizon), providing the Auto-Correlation mixer with two full operational cycles. Combined with a single decoder layer to prevent over-accumulation of the trend and a smaller batch size to smooth heavy-tailed gradient variance, this wide-context configuration yielded a massive improvement, dropping the final RMSE to 78.06 and the MAE to 50.92.
+\end{itemize}
 
 % ---------------------------------------------------------
 % GENERATIVE AI USAGE (MANDATORY SECTION)
 % ---------------------------------------------------------
 \section*{Generative AI Usage}
-\textit{[As per the instructions on Page 1 of DL4STG-PA1.pdf, explicitly state your usage of generative AI tools. If you did not use any, state ``No Generative AI tools were used in the completion of this assignment.'']}
 
-\begin{itemize}
-    \item \textbf{Prompt Used:} \textit{[Insert the exact prompt you provided to the AI]}
-    \item \textbf{Output Received:} \textit{[Insert a brief summary of the output or the exact output snippet]}
-    \item \textbf{Edits Made:} \textit{[Explain how you adapted or modified the output for your final submission]}
-\end{itemize}
+\textit{Generative AI tools were utilized during the completion of this assignment strictly as supplementary assistants. Primarily, AI was used as a learning aid to deepen my understanding of the assignment's underlying concepts, as well as to break down the specific architectures and techniques required for the tasks.} 
 
-% ---------------------------------------------------------
-% REFERENCES
-% ---------------------------------------------------------
-\begin{thebibliography}{9}
-\bibitem{autoformer} 
-Wu, Haixu, et al. 
-\textit{Autoformer: Decomposition Transformers with Auto-Correlation for Long-Term Series Forecasting}. 
-Advances in Neural Information Processing Systems, 2021.
-
-\bibitem{attention}
-Vaswani, Ashish, et al.
-\textit{Attention Is All You Need}.
-Advances in Neural Information Processing Systems, 2017.
-
-\bibitem{are_transformers_effective}
-Zeng, Ailing, et al.
-\textit{Are Transformers Effective for Time Series Forecasting?}
-AAAI Conference on Artificial Intelligence, 2023.
-
-\bibitem{fpp3}
-Hyndman, R.J., \& Athanasopoulos, G.
-\textit{Forecasting: Principles and Practice}.
-OTexts, 3rd edition, 2021.
-\end{thebibliography}
-
-% ---------------------------------------------------------
-% APPENDIX
-% ---------------------------------------------------------
-\appendix
-\section{Appendix}
-
-\subsection{Additional Plots and Data Visualizations}
-\textit{[Include any extra figures, diagnostics, or tables here that support your arguments in Task 1 or Task 2. Ensure all items are referenced clearly in the main text.]}
-
-\subsection{Supplementary Code Snippets}
-\textit{[While your full implementation must live in your public GitHub repository, you may include brief, critical code excerpts here if they are directly necessary to clarify a complex argument made in the report.]}
+\textit{Furthermore, these tools provided support in the drafting and grammatical refinement of this report, debugging and structuring programming code, and compiling supporting evidence. However, all core ideas, critical analyses, experimental methodologies, and final implementations presented in this document are entirely my own original work. The AI was leveraged to facilitate execution and conceptual clarity, not to replace independent critical thinking or problem-solving.}
 
 \end{document}
 

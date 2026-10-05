@@ -345,15 +345,12 @@ The assumption that useful temporal relationships are organized by recurring dis
 
 \subsubsection*{Response 4}
 
+
 \textbf{(a) Hypothesis} \\
-I predict that the decomposition upgrade will help the most on contexts where the slow component is especially prominent. A large baseline drift dominates the numerical values of the window, making it difficult for any mixer to isolate the much smaller repeating cycles unless that smooth ramp is explicitly stripped away first.
-
+I expect decomposition to help most when the slow drift is large. The slow ramp dominates the raw numbers, preventing the model from seeing the smaller vibrations unless I remove it first.
+  
 \textbf{(b) Validation Performance and Model Comparison} \\
-Table \ref{tbl:4.1} details the performance of the four neural models. On the established stations, the linear baseline Period-routed ridge achieves an exceptional RMSE of 0.166 and MSE of 0.028. In contrast, Raw Attention struggles with an RMSE of 0.440 and MSE of 0.194. 
-
-Testing the two architectural switches reveals that both independently help. Swapping to a decomposed representation improves the established RMSE to 0.318, while switching to the delay mixer improves it even more to 0.226. Combining both upgrades into the Autoformer-inspired model yields the best neural performance (0.197 RMSE, 0.039 MSE). However, the gains from the two switches do not perfectly stack; because both upgrades target aspects of the same drift-plus-repetition structure, their benefits partially overlap. 
-
-Figure \ref{fig:4.1-1} visualizes these improvements, showing how the Autoformer-inspired model corrects the phase and amplitude errors that plague Raw Attention. 
+Table \ref{tbl:4.1} shows the Period-routed ridge baseline easily beats Raw Attention (RMSE 0.166 vs 0.440).The architectural upgrades both help: decomposition lowers RMSE to 0.318, and the delay mixer lowers it to 0.226. Combining them gives the best neural result (0.197 RMSE). Because both tackle the same drift-and-vibration structure, their benefits overlap and don't perfectly stack. Figure \ref{fig:4.1-1} shows the combined model fixing Raw Attention's phase and amplitude errors. When predicting further into the future (Figure \ref{fig:4.2-1}), Raw Attention's errors grow rapidly, while the linear and Autoformer models remain stable.
 
 \begin{figure}[ht]
     \centering
@@ -389,10 +386,10 @@ Regarding the forecast horizon, Figure \ref{fig:4.2-1} demonstrates that RMSE in
     \label{fig:4.2-1}
 \end{figure}
 
-\textbf{(c) Deployment Selection} \\
-For both the established stations and the held-out Station 4, I select the \textbf{Period-routed ridge} model for deployment. 
 
-While the Autoformer-inspired architecture represents a massive structural improvement over Raw Attention, it still fails to beat the explicitly programmed linear baseline. Period-routed ridge achieves the lowest validation RMSE globally (0.166 on established, 0.173 on held-out). Crucially, it accomplishes this using only 59,904 parameters and a nearly instantaneous 0.014-second fitting time, compared to the Autoformer-inspired model's bloated 373,026 parameters and 107-second training time. Providing the exact right inductive bias explicitly—by routing periods to tailored matrices—computationally and predictively dominates a flexible, heavily parameterized neural architecture for this specific physical system.
+\textbf{(c) Deployment Selection} \\
+I am deploying the \textbf{Period-routed ridge} model for the established and held-out stations. Although the Autoformer massively improves on Raw Attention, the selected model still wins (RMSE 0.166). Crucially, it needs just 59,904 parameters and 0.014 seconds to fit, unlike the Autoformer's 373,026 parameters and 107 seconds. This proves that manually giving the model the right physical assumption—routing by cycle pace—easily beats a massive, flexible neural network.
+
 
 \begin{table}[ht]
 \centering

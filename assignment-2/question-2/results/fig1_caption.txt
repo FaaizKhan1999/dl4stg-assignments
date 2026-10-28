@@ -1,0 +1,1 @@
+Figure 1: Farneback optical flow on the first 50 training videos (950 consecutive frame pairs), pooling 103,050 pixels with intensity > 0.2 in both frames and flow magnitude > 0.5 px. (a) Flow direction (0° = right, 90° = up; dashed line = uniform 1/18). (b) Flow speed; median 3.32 px/frame (red line). Both shown as fractions of kept pixels.

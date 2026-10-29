@@ -1,0 +1,1 @@
+Figure 5: model A (seed 0) on test video 21 (dataset index 9021) at 1×, 2× and 3× (t = 1): five input frames, then the first two predicted and true future frames. No digit overlap in any displayed frame (blob-count heuristic).

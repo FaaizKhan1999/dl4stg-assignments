@@ -1,0 +1,1 @@
+Figure 4: histograms of per-video consistency gaps C_M (a) and C_R (b) of seed-0 model A over the 1,000 test videos. Red lines: the videos in Figure 3 ([('M', 269), ('M', 499), ('R', 31), ('R', 150)]).

@@ -1,0 +1,5 @@
+Figure 3: the two test videos with the largest per-video C_M and the two with the largest C_R for seed-0 model A. Rows: (1) X | f(X); (2) T(X) | T(Y); (3) T(X) | f(T(X)); (4) T(X) | T(f(X)).
+(a) T = M, test video 269, C_M = 0.00432, E_M = 0.0331; GIF: gifs/fig3a_M_test269.gif
+(b) T = M, test video 499, C_M = 0.00379, E_M = 0.0264; GIF: gifs/fig3b_M_test499.gif
+(c) T = R, test video 31, C_R = 0.00656, E_R = 0.0334; GIF: gifs/fig3c_R_test31.gif
+(d) T = R, test video 150, C_R = 0.00626, E_R = 0.0298; GIF: gifs/fig3d_R_test150.gif

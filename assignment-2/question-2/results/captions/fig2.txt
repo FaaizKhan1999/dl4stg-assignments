@@ -1,0 +1,1 @@
+Figure 2: input (frames 1–5), prediction and ground truth (frames 6–10) of seed-0 model A for test videos [7, 12, 0] (dataset indices [9007, 9012, 9000]). Video 0 has overlapping digits.

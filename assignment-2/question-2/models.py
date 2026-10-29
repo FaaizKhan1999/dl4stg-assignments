@@ -63,7 +63,9 @@ class ConvLSTMForecaster(nn.Module):
         self.in_frames, self.out_frames = in_frames, out_frames
         fold = patch * patch                                    # 1 x 64 x 64 -> fold x 16 x 16
         ins = [fold] + hidden[:-1]                              # layer l>1 takes h of layer l-1
-        self.cells = nn.ModuleList(ConvLSTMCell(i, h, kernel, dilation) for i, h in zip(ins, hidden))
+        dil = [dilation] * n_layers if isinstance(dilation, int) else list(dilation)
+        assert len(dil) == n_layers
+        self.cells = nn.ModuleList(ConvLSTMCell(i, h, kernel, d) for i, h, d in zip(ins, hidden, dil))
         self.head = nn.Conv2d(hidden[-1], fold, kernel_size=1, bias=True)
 
     def step(self, frame, states):

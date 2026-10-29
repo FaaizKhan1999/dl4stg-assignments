@@ -83,7 +83,8 @@ def train(args):
     # seed: initialisation (global RNG) and all sampling (dedicated generator)
     torch.manual_seed(args.seed)
     model, arch = build_model(rules["arch"], dict(patch=args.patch, hidden=args.hidden,
-                              n_layers=args.layers, kernel=args.kernel, dilation=args.dilation))
+                              n_layers=args.layers, kernel=args.kernel,
+                              dilation=args.dilation[0] if len(args.dilation) == 1 else args.dilation))
     model = model.to(device).train()
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     gen = torch.Generator().manual_seed(args.seed)
@@ -155,7 +156,7 @@ if __name__ == "__main__":
     ap.add_argument("--hidden", type=int, default=64)
     ap.add_argument("--layers", type=int, default=2)
     ap.add_argument("--kernel", type=int, default=3)
-    ap.add_argument("--dilation", type=int, default=1)
+    ap.add_argument("--dilation", type=int, nargs="+", default=[1])
     # smoke tests
     ap.add_argument("--quick", action="store_true", help="64 train videos, 2 epochs, batch 8")
     ap.add_argument("--synthetic", action="store_true", help="synthetic squares, no dataset")

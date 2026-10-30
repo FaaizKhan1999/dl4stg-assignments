@@ -187,12 +187,13 @@ def main():
                     run_and_save(sym_of[lab].replace(" ", "").replace("+", ""), seed,
                                  Symmetrised(model).eval(), log, test_u8, device, out_dir))
 
-    # merge with previously saved results so tables can be built incrementally
+        # merge with previously saved results for labels NOT evaluated in this run
+    fresh = set(results)
     for p in sorted(out_dir.glob("*.json")):
         name = p.stem.rsplit("_seed", 1)[0]
         label = {"Blank": "Blank", "Copy-last": "Copy-last", "A": "A", "B": "B", "C": "C",
                  "D": "D", "DB": "D+B", "symB": "sym B", "symD": "sym D", "symDB": "sym D+B"}.get(name)
-        if label and label not in results:
+        if label and label not in fresh:
             results.setdefault(label, []).append(json.loads(p.read_text()))
 
     hw = next((r["hardware"] for rs in results.values() for r in rs if r.get("hardware")), "see logs")

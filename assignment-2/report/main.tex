@@ -13,7 +13,7 @@
 \usepackage{graphicx}
 \usepackage{float}
 
-\usetikzlibrary{arrows.meta,positioning,calc}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{1em}
@@ -60,65 +60,56 @@
 % ---------------------------------------------------------
 \section*{Question 1 --- River Forecasting Proposal}
 
-A directed river-graph forecaster: each station attends to its upstream sources at learned, state-dependent lags, adds announced releases, and outputs quantiles at S1--S4 for $t_0{+}10,\dots,t_0{+}60$ min.
+Each station attends to its upstream sources at learned, state-dependent lags, adds announced releases, and outputs level quantiles at S1--S4 for $t_0{+}10,\dots,t_0{+}60$\,min.
 
 \subsection*{1.\ Architecture diagram}
 
 $B$ = issuance times, $H{=}72$ history steps, $K{=}6$ horizon steps, $N{=}7$ nodes $\{Q,\mathrm{S1..S4},\mathrm{T1},\mathrm{TU}\}$ ($Q$ = reservoir, TU = virtual node for the unmonitored tributary), $d{=}64$, $\Delta{=}10$\,min.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  box/.style={draw, rounded corners, align=center, minimum width=3.4cm, minimum height=1.15cm, fill=#1},
-  box/.default=white,
-  enc/.style={draw, rounded corners, align=center, minimum width=4.6cm, minimum height=1.15cm, fill=#1, thick},
+  io/.style={draw, align=center, minimum width=3.0cm, minimum height=1.2cm, fill=blue!7},
+  blk/.style={draw, rounded corners, thick, align=center, minimum width=3.6cm, minimum height=1.4cm, fill=#1},
   arr/.style={-{Stealth}, thick},
+  side/.style={-{Stealth}, thick, dashed},
+  lab/.style={font=\scriptsize, fill=white, inner sep=1pt},
+  grp/.style={draw, rounded corners=6pt, dashed, inner sep=10pt, fill=#1},
 ]
-% --- sources
-\node[box=blue!8] (h) at (0,0)    {River levels S1--S4, T1\\$B{\times}H{\times}5{\times}4$};
-\node[box=blue!8] (r) at (0,-1.7) {Rain R1, R2 (TU catchment)\\$B{\times}H{\times}2{\times}3$};
-\node[box=blue!8] (q) at (0,-3.4) {Past releases $Q$\\$B{\times}H{\times}1{\times}3$};
-\node[box=blue!8] (s) at (0,-5.1) {Release schedules\\(versioned) $B{\times}K{\times}1{\times}2$};
-\node[box=blue!8] (g) at (0,-6.8) {Static: graph, distances,\\coordinates};
-% --- alignment
-\node[box=orange!12] (ah) at (4.3,0)    {Snap to $\Delta$ grid\\value, $\delta h$, mask, age};
-\node[box=orange!12] (ar) at (4.3,-1.7) {Spread \& sum depth\\per bin, mask, age};
-\node[box=orange!12] (aq) at (4.3,-3.4) {Step-hold by\\effective time};
-\node[box=orange!12] (as) at (4.3,-5.1) {As-of filter:\\$t^{\mathrm{ann}}\le t_0$};
-\node[box=orange!12] (ag) at (4.3,-6.8) {Upstream sets $\mathcal U(n)$\\river distance $d_{ij}$};
-% --- projection
-\node[box=green!12] (ph) at (8.6,0)    {$W_h:\mathbb R^4\!\to\!\mathbb R^d$\\$B{\times}H{\times}5{\times}d$};
-\node[box=green!12] (pr) at (8.6,-1.7) {concat gauges $\to B{\times}H{\times}1{\times}6$\\$W_r:\mathbb R^6\!\to\!\mathbb R^d$ (node TU)};
-\node[box=green!12] (pq) at (8.6,-3.4) {$W_q:\mathbb R^3\!\to\!\mathbb R^d$\\$B{\times}H{\times}1{\times}d$};
-\node[box=green!12] (ps) at (8.6,-5.1) {$W_s:\mathbb R^2\!\to\!\mathbb R^d$\\$B{\times}K{\times}1{\times}d$};
-\node[box=green!12] (pg) at (8.6,-6.8) {Edge encoding\\$\phi(d_{ij},\text{lag})$};
-% --- encoder / decoder chain
-\node[enc=gray!10]   (st)  at (14,0)    {Stack on node axis $+\,p_n,\ e_t$\\$Z^{(0)}\in B{\times}H{\times}7{\times}d$};
-\node[enc=yellow!15] (tb)  at (14,-1.7) {Causal temporal conv $\times4$\\(dilation 1,2,4,8), per node};
-\node[enc=yellow!15] (ga)  at (14,-3.4) {River-graph lag attention $\times3$\\keys: $\mathcal U(n)\times$ past lags};
-\node[enc=red!10]    (dec) at (14,-5.1) {Horizon decoder, $k=1..6$\\memory + releases $k'\!\le k$\\$B{\times}6{\times}4{\times}d$};
-\node[enc=red!10]    (hd)  at (14,-6.8) {Quantile heads $\tau\in\{.1,.5,.9\}$\\+ persistence anchor $\bar y_n$};
-\node[enc=purple!12] (out) at (14,-8.6) {$\hat Y\in B{\times}6{\times}4{\times}3$\\\textbf{service: S1--S4 at $t_0{+}60$} ($k{=}6$)};
-% --- arrows
-\foreach \a/\b in {h/ah,r/ar,q/aq,s/as,g/ag,ah/ph,ar/pr,aq/pq,as/ps,ag/pg}{\draw[arr] (\a) -- (\b);}
-\draw[arr] (ph) -- (st);
-\draw[thick] (pr.east) -| (11.1,0);
-\draw[thick] (pq.east) -| (11.1,0);
-\fill (11.1,0) circle (1.5pt);
-\draw[arr] (ps) -- (dec);
-\draw[arr, dashed] (pg.east) -| (11.4,-3.4) -- (ga.west);
-\draw[arr] (st) -- (tb);
-\draw[arr] (tb) -- (ga);
-\draw[arr] (ga) -- node[right, font=\scriptsize, xshift=2pt]{memory $B{\times}H{\times}7{\times}d$} (dec);
-\draw[arr] (dec) -- (hd);
+% ---------- encoder row
+\node[io, minimum width=3.7cm] (in) at (-1.0,0) {\textbf{Past inputs}\\levels S1--S4, T1: $B{\times}H{\times}5{\times}4$\\rain R1, R2: $B{\times}H{\times}2{\times}3$\\releases $Q$: $B{\times}H{\times}1{\times}3$};
+\node[blk=gray!12, minimum width=4.0cm] (emb) at (4.4,0) {\textbf{Embed \& combine}\\align to 10-min grid\\rain $\to B{\times}H{\times}1{\times}6$ (node TU)\\project each to $d$, stack nodes};
+\node[blk=yellow!20] (tb) at (10.4,0) {\textbf{T block} $\times4$\\causal conv\\over time, per node};
+\node[blk=yellow!35] (st) at (15.2,0) {\textbf{ST attention} $\times3$\\each station attends to\\upstream nodes $\times$ past lags};
+% ---------- decoder row
+\node[io] (fut) at (10.4,-3.6) {Announced releases\\$t^{\mathrm{ann}}\le t_0$, project to $d$\\$B{\times}K{\times}1{\times}2$};
+\node[blk=red!12] (ca) at (15.2,-3.6) {\textbf{Cross-attention} $\times2$\\horizon queries $k{=}1..6$\\attend memory + releases};
+\node[blk=red!22] (hd) at (20.8,-3.6) {\textbf{Quantile head}\\last level $+$ change\\$\tau\in\{0.1,0.5,0.9\}$};
+\node[io, fill=purple!12] (out) at (20.8,0) {$\hat Y$: S1--S4\\$t_0{+}10..60$ min\\$B{\times}6{\times}4{\times}3$};
+% ---------- side input: river graph
+\node[io, fill=green!10] (g) at (15.2,2.6) {River graph\\connectivity, distances $d_{ij}$\\$\to$ upstream mask, $\phi(d_{ij},\text{lag})$};
+% ---------- groups (drawn behind)
+\begin{scope}[on background layer]
+\node[grp=yellow!5, fit=(tb)(st), label={[font=\small\bfseries]above left:ENCODER}] {};
+\node[grp=red!4,  fit=(ca)(hd), label={[font=\small\bfseries]below left:DECODER}] {};
+\end{scope}
+% ---------- arrows
+\draw[arr] (in) -- (emb);
+\draw[arr] (emb) -- node[lab, above]{$B{\times}H{\times}7{\times}d$} (tb);
+\draw[arr] (tb) -- (st);
+\draw[arr] (st) -- node[lab, right]{memory $B{\times}H{\times}7{\times}d$} (ca);
+\draw[arr] (fut) -- (ca);
+\draw[arr] (ca) -- node[lab, above]{$B{\times}6{\times}4{\times}d$} (hd);
 \draw[arr] (hd) -- (out);
+\draw[side] (g) -- (st);
 \end{tikzpicture}}
-\caption{Pipeline. Future schedules skip the encoder and enter the decoder on the horizon axis.}
+\caption{Encoder--decoder architecture. The encoder summarises the last 12\,h of every node: a T block (causal convolution over time) followed by ST attention, where each station attends to its upstream nodes at all past lags, guided by the river graph. The decoder forms one query per horizon step and station, attends to the encoder memory and to announced releases, and outputs level quantiles as a change from the last observed level.}
+\label{fig:q1arch}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \begin{tikzpicture}[font=\small,
   st/.style={circle, draw, thick, fill=blue!10, minimum size=8mm},
@@ -145,25 +136,26 @@ $B$ = issuance times, $H{=}72$ history steps, $K{=}6$ horizon steps, $N{=}7$ nod
 \draw[rain] (R2) -- (U);
 \end{tikzpicture}
 \caption{River graph. Solid: river edges with distances. Dotted: rain gauges feed only the virtual node TU (A7). $\mathcal U(n)$ = $n$ plus every node with a path into $n$.}
+\label{fig:q1graph}
 \end{figure}
 
 \subsection*{2.\ Assumptions}
 
-\textbf{Supplied facts:} 10-min levels at S1--S4 and T1; timestamped rain at R1, R2; recorded releases and schedules with announcement and effective times; topology and river distances. Travel times and unmonitored inflow are not supplied; future rain and levels are unavailable at issuance.
+\textbf{Supplied facts:} 10-min levels at S1--S4 and T1; timestamped rain at R1, R2; recorded releases and schedules with announcement and effective times; topology and river distances. Not supplied: travel times, unmonitored inflow. Unavailable at issuance: future rain and levels.
 
 \begin{enumerate}[label=\textbf{A\arabic*}, leftmargin=*, itemsep=0pt]
-  \item $\ge$3 years of data including several floods, so high-flow behaviour can be learned.
-  \item Levels arrive within $\sim$20 min and rain within $\sim$30 min, with arrival times logged, so inputs can be built from what had actually arrived.
-  \item Gaps are short and occasional, and faulty readings are detectable by range and rate checks, so masking is enough.
-  \item Each rain report gives the depth since the previous report, so rain is summed per bin rather than interpolated.
-  \item Everything relevant to a 1-h forecast occurred within the last 12\,h, which sets $H{=}72$.
+  \item $\ge$3 years of data with several floods, so high-flow behaviour can be learned.
+  \item Levels arrive within $\sim$20 min, rain within $\sim$30 min, and arrival times are logged, so inputs can be built from what had arrived.
+  \item Gaps are short and faulty readings are detectable by range and rate checks, so masking is enough.
+  \item Each rain report gives the depth since the previous one, so rain is summed per bin, not interpolated.
+  \item Everything relevant to a 1-h forecast happened within the last 12\,h, which sets $H{=}72$.
   \item Flow is downstream only (no backwater), so stations attend only upstream.
-  \item R1 and R2 flank the unmonitored tributary's catchment (map), so rain enters the model only through TU and affects only S3 and S4. Rain elsewhere is either buffered by the reservoir (reaching S1 via releases) or already visible in T1's levels.
-  \item Unmonitored inflow is mainly rain-driven, so R1 and R2 are usable proxies for it.
+  \item R1 and R2 flank the unmonitored tributary (map), so rain enters only through TU and affects only S3 and S4. Other rain is buffered by the reservoir or already visible in T1.
+  \item Unmonitored inflow is mainly rain-driven, so R1 and R2 are usable proxies.
   \item Travel time varies smoothly with flow and distance on a stable channel, so learned lags generalise.
-  \item Release records are accurate and schedule versions are archived, which is needed for leak-free training.
+  \item Release records are accurate and schedule versions are archived, needed for leak-free training.
   \item Each station has a fixed level datum, so the model can predict change from the last level.
-  \item Future rain is unknown, so it is represented as uncertainty rather than as an input.
+  \item Future rain is unknown, so it is treated as uncertainty, not an input.
 \end{enumerate}
 
 \subsection*{3.\ Forecasting task and data specification}
@@ -174,7 +166,7 @@ $B$ = issuance times, $H{=}72$ history steps, $K{=}6$ horizon steps, $N{=}7$ nod
 \[
 \text{history } j=-71..0\ (12\text{\,h}),\qquad \text{horizon } k=1..6\ \ (k{=}6:\ t_0{+}60\text{ min}).
 \]
-Forecasts are issued every 10 min at $t_0$ using only $\mathcal I(t_0)$. The outputs are the quantiles $\tau\in\{0.1,0.5,0.9\}$ of the level at S1--S4.
+Forecasts are issued every 10 min at $t_0$ from $\mathcal I(t_0)$ only. Outputs are the quantiles $\tau\in\{0.1,0.5,0.9\}$ of the level at S1--S4.
 
 \begin{center}\small
 \begin{tabularx}{\textwidth}{@{}l l X l@{}}
@@ -194,16 +186,15 @@ $\hat Y$ & $B{\times}K{\times}4{\times}3$ & batch, horizon, station, quantile & 
 
 \textbf{Alignment.}
 \begin{itemize}[leftmargin=*, itemsep=0pt]
-  \item \emph{Time:} levels take the last value in each 10-min bin; rain depth is spread over its report interval and summed per bin; releases are step-held. Masks and ages mark gaps.
-  \item \emph{Space:} sources are not interpolated. Each source is a node, except that the two gauges are concatenated into TU. Nodes relate only through $\mathcal U(n)$ and $d_{ij}$.
+  \item \emph{Time:} levels take the last value per 10-min bin; rain depth is spread over its report interval and summed per bin; releases are step-held. Masks and ages mark gaps.
+  \item \emph{Space:} no interpolation. Each source is a node (the two gauges are concatenated into TU), related only through $\mathcal U(n)$ and $d_{ij}$.
   \item \emph{Features:} per-type projections $W_c$ map every source to width $d$ before stacking on the node axis.
 \end{itemize}
 
 \subsection*{4.\ Model computations and design justification}
 
-Notation: $\mathcal U(n)$ = upstream closure (Fig.~2), e.g.\ $\mathcal U(\mathrm{S3})=\{\mathrm{S3},\mathrm{S2},\mathrm{S1},\mathrm{T1},Q,\mathrm{TU}\}$ and $\mathcal U(\mathrm{S2})=\{\mathrm{S2},\mathrm{S1},\mathrm{T1},Q\}$; $h_{t,n}\in\mathbb R^d$ is the representation of node $n$ at time $t$.
+Notation: $\mathcal U(n)$ = upstream closure (Figure~\ref{fig:q1graph}), e.g.\ $\mathcal U(\mathrm{S3})=\{\mathrm{S3},\mathrm{S2},\mathrm{S1},\mathrm{T1},Q,\mathrm{TU}\}$; $h_{t,n}\in\mathbb R^d$ is node $n$ at time $t$. TU has no sensor, so $h_{t,\mathrm{TU}}$ is a learned rain feature, not an inflow estimate; a tributary gauge would make it a supervised node without structural change.
 
-\noindent One this to note is that TU has no measurements, so $h_{t,\mathrm{TU}}$ is a learned rain feature, not an inflow estimate. It could be tied to actual inflow only through a constraint (e.g.\ on S3's rise relative to S2) or a future tributary gauge; with a gauge, TU becomes a supervised node with no structural change.
 \begin{table}[H]
 \centering
 \renewcommand{\arraystretch}{1.8}
@@ -235,13 +226,13 @@ $\displaystyle \mathcal L=\frac{\sum w_b\,m\,\rho_\tau(y-\hat y^{(\tau)})}{\sum 
 
 \noindent\textbf{Why each block:}
 \begin{itemize}[leftmargin=*, itemsep=0pt]
-  \item[(b)] Captures local trends and rain-accumulation shape.
-  \item[(c)] One layer reaches every upstream source at every lag (A5). The query and key depend on the current states, so lags shift with flow (A9). $\phi$ handles uneven spacing. $\mathcal U$ encodes flow direction (A6).
-  \item[(d)] Lets announced releases act on the forecast, but only on steps where they are already effective ($k'\le k$).
-  \item[(e)] Anchoring on the last level $\bar y_n$ means the model predicts change from persistence (A11). Softplus increments keep the quantiles from crossing.
-  \item[(f)] A point loss returns only the mean (MSE) or median (MAE). The irreducible uncertainty from the tributary and future rain needs bands, and $w_b$ up-weights floods.
+  \item[(b)] Local trends and rain-accumulation shape.
+  \item[(c)] One layer reaches every upstream source at every lag (A5). Queries and keys depend on current states, so lags shift with flow (A9). $\phi$ handles uneven spacing; $\mathcal U$ encodes flow direction (A6).
+  \item[(d)] Announced releases act only on steps where they are already effective ($k'\le k$).
+  \item[(e)] Anchoring on $\bar y_n$ makes the model predict change from persistence (A11); softplus keeps quantiles from crossing.
+  \item[(f)] A point loss gives only a mean or median. Irreducible uncertainty (tributary, future rain) needs bands; $w_b$ up-weights floods.
 \end{itemize}
-Training uses chronological splits, as-of inputs, random masking, a 5-seed ensemble and conformal calibration.
+Training: chronological splits, as-of inputs, random masking, 5-seed ensemble, conformal calibration.
 
 \begin{center}\small
 \begin{tabularx}{\textwidth}{@{}l X@{}}
@@ -274,14 +265,14 @@ Condition & Handling\\
 \end{tabularx}
 \end{center}
 
-\noindent\textbf{Feasibility.} With $L=HN=504$ tokens, even dense attention costs $2L^2d\approx3\times10^7$ MACs per layer, about $10^9$ for the full 5-member ensemble. That is under 1\,s on a CPU, so ingestion dominates the 10-min cycle.
+\noindent\textbf{Feasibility.} With $L=HN=504$ tokens, even dense attention costs $2L^2d\approx3\times10^7$ MACs per layer, about $10^9$ for the 5-member ensemble: under 1\,s on a CPU, so ingestion dominates the 10-min cycle.
 
 \subsection*{6.\ Uncertainty, limitations and additional information}
 
-Uncertainty is reported as calibrated 10--90\% bands (quantiles, ensemble spread and conformal calibration).
+Uncertainty is reported as calibrated 10--90\% bands (quantiles, ensemble spread, conformal calibration).
 
 \begin{center}\small
-\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.9cm} X X@{}}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.9cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
 \toprule
 Limitation & Impact & Response / unresolved\\
 \midrule
@@ -313,7 +304,568 @@ Reservoir operating rules & Anticipate unscheduled releases & Yes\\
 \end{tabularx}
 \end{center}
 
+% =====================================================================
+\section*{Question 2 --- Motion or Memory?}
+\setcounter{figure}{0}
+\setcounter{table}{0}
 
+All transformation and window functions were checked before any experiment (Table~\ref{tab:1}); every row matches.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Implementation checks on the synthetic tensors (indices from 0 in (d)--(e)).}
+\label{tab:1}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+Check & Expected & Ours \\
+\midrule
+(a) $\max|M(M(x)) - x|$ & 0 & 0 (\texttt{torch.equal}: True) \\
+(b) $\max|R^4(x) - x|$ & 0 & 0 (\texttt{torch.equal}: True) \\
+(c) $\max|MRM(x) - R^{-1}(x)|$ & 0 & 0 (\texttt{torch.equal}: True) \\
+(d) bright pixel of $M(p)$ & (7, 10, 43) & (7, 10, 43) \\
+(e) bright pixel of $R(p)$ & (7, 43, 10) & (7, 43, 10) \\
+(f) 1$\times$ input / target frames & 1--5 / 6--10 & 1--5 / 6--10 \\
+(g) 2$\times$ input / target frames & 1, 3, 5, 7, 9 / 11, 13, 15, 17, 19 & 1, 3, 5, 7, 9 / 11, 13, 15, 17, 19 \\
+(h) 3$\times$ input / target frames & 1, 4, 7, 10, 13 / 16, 19 & 1, 4, 7, 10, 13 / 16, 19 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection*{1. Is the training data already symmetric?}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../question-2/figures/fig1.pdf}
+\caption{Farneback optical flow on the first 50 training videos (950 consecutive frame pairs), pooling 103,050 pixels with intensity $>0.2$ in both frames and flow magnitude $>0.5$\,px. (a) Flow direction ($0^\circ$ = right, $90^\circ$ = up; dashed line = uniform $1/18$). (b) Flow speed; median 3.32\,px/frame (red line). Both shown as fractions of kept pixels.}
+\label{fig:1}
+\end{figure}
+
+\textbf{Direction.} Every direction is well represented (Figure~\ref{fig:1}a). A mirror ($\theta \to 180^\circ - \theta$) or rotation ($\theta \to \theta + 90^\circ$) only reorders the bars, changing the histogram about as much as it already differs from uniform (table below). The bumps are mostly sampling noise from about 100 trajectories. \textbf{Mirrored and rotated trajectories are already familiar.}
+
+\textbf{Speed.} Almost all motion lies between 3 and 4.5\,px/frame (Figure~\ref{fig:1}b), so faster speeds are unseen:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Speed & Typical step (px/frame) & Range (px/frame) & Seen in training? \\
+\midrule
+1$\times$ & 3.3 & 3--4.5 & yes \\
+2$\times$ & 6.6 & 6--9 & no \\
+3$\times$ & 10.0 & 9--13.5 & no \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Overlap bias.} Repeating the analysis on pairs with two separate bright blobs (a no-overlap heuristic) barely changes anything (table below). Overlap does not change the answer.
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+ & All pairs & No-overlap pairs \\
+\midrule
+Frame pairs & 950 & 489 \\
+Pixels kept & 103,050 & 51,532 \\
+Median speed (px/frame) & 3.32 & 3.26 \\
+TV to uniform & 0.109 & 0.106 \\
+TV original vs.\ mirrored & 0.132 & 0.148 \\
+TV original vs.\ rotated $90^\circ$ & 0.200 & 0.208 \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+{\small TV = total-variation distance between direction histograms (0 = identical).}
+\end{center}
+
+\subsection*{2. Motion, appearance, or both?}
+
+All three keep the motion physically valid; they differ in what they change:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+Transformation & Motion statistics & Digit appearance \\
+\midrule
+Mirror $M$ & Unchanged: directions map $\theta \to 180^\circ-\theta$, and these are already common in training. & Changed: a mirrored digit is not a real digit. \\
+Rotation $R$ & Unchanged: directions map $\theta \to \theta+90^\circ$, and these are already common in training. & Changed more: rotated digits look even less familiar. \\
+Speed-up $k\times$ & Changed: steps are $k$ times longer, outside the training range. & Unchanged: same digits. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{Why this is a controlled experiment.} Each transformation changes mainly one factor:
+\begin{itemize}[itemsep=0pt]
+  \item Mirror and rotation change only appearance, so failures there point to appearance.
+  \item Speed-up changes only motion, so failures there point to motion (unfamiliar speed or limited reach).
+  \item Mirror and rotation give two levels of appearance change, so we can check whether a larger change causes a larger error.
+\end{itemize}
+The correct answer is always known exactly ($T(Y)$ or the faster true frames).
+
+\subsection*{3. How far can information travel in model A?}
+
+One folded cell is 4 pixels. Only spatial convolutions larger than $1\times1$ move information; pixel (un)shuffle, the $1\times1$ head and the element-wise gate and cell updates do not. Each $3\times3$ convolution moves information by at most 1 cell:
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Path to $\hat{x}_{\tau+1}$ & $3 \times 3$ convolutions & Reach \\
+\midrule
+$u_\tau \to$ layer 1 $\to$ layer 2 $\to$ output & 2 & 2 cells = 8\,px \\
+$h^{(1)}_{\tau-1} \to$ layer 1 $\to$ layer 2 $\to$ output & 2 & 2 cells = 8\,px \\
+$h^{(2)}_{\tau-1} \to$ layer 2 $\to$ output & 1 & 1 cell = 4\,px \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Model A's reach is 8\,px per step} (2 convolutions $\times$ 1 cell $\times$ 4\,px).
+\begin{itemize}[itemsep=0pt]
+  \item The reach is per axis (a $3\times3$ kernel covers a square), so up to $8\sqrt2\approx11$\,px along a diagonal.
+  \item Recurrence carries information further over several steps, but only 8\,px per step. A digit moving further than that leaves the region its old position (in $h^{(1)}_{\tau-1}$) can reach in one update.
+\end{itemize}
+
+\subsection*{4. How good is model A?}
+
+\begin{table}[H]
+\centering
+\caption{Test error at 1$\times$, $t=1$. Model A: mean (seed 0, seed 1).}
+\label{tab:2}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccc}
+\toprule
+Model & MSE$_1$ & MSE$_2$ & MSE$_3$ & MSE$_4$ & MSE$_5$ & $E^{(5)}$ & Params \\
+\midrule
+A & 0.0172 (0.0175, 0.0170) & 0.0205 (0.0208, 0.0203) & 0.0228 (0.0231, 0.0225) & 0.0245 (0.0248, 0.0242) & 0.0262 (0.0264, 0.0259) & 0.0222 (0.0225, 0.0220) & 480,784 \\
+Blank & 0.0426 & 0.0426 & 0.0426 & 0.0425 & 0.0425 & 0.0426 & 0 \\
+Copy-last & 0.0492 & 0.0604 & 0.0669 & 0.0708 & 0.0732 & 0.0641 & 0 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{../question-2/figures/fig2.pdf}
+\caption{Input (frames 1--5), prediction and ground truth (frames 6--10) of seed-0 model A for test videos 7, 12 and 0 (dataset indices 9007, 9012 and 9000). Video 0 has overlapping digits.}
+\label{fig:2}
+\end{figure}
+
+\textbf{Against the references.} Model A roughly halves Blank's error and is far better than Copy-last; the seeds agree closely (Table~\ref{tab:2}). Copy-last is worse than Blank because digits move further than a stroke is wide: a copied frame misses the digit's new position \emph{and} draws its old one.
+
+\textbf{Error growth.} The error grows with the horizon, but more slowly at each step:
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+ & $h=1\to2$ & $h=2\to3$ & $h=3\to4$ & $h=4\to5$ \\
+\midrule
+Increase in MSE$_h$ & +0.0033 & +0.0023 & +0.0017 & +0.0017 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Figure~\ref{fig:2} shows why: positions stay roughly right (in video 12 the 4 even turns at the top wall), but shapes blur into smudges as the model feeds back its own predictions. Under MSE, dim brightness over likely positions costs less than a sharp digit in the wrong place, so the error levels off instead of exploding.
+
+\textbf{Overlapping digits.} In video 0 the 5 and 8 merge and then separate. The model predicts one merged blob that drifts up and fades: the 5 survives as a smear, the 8 is lost. With no notion of separate objects, it cannot tell which strokes belong to which digit.
+
+\subsection*{5. Predictions before testing}
+
+\textit{This answer was written and committed before any experiment in Testing the Baseline, and is reproduced exactly as first written.}
+
+\paragraph{Mirror and rotation.}
+I predict model A will mostly pass the mirror test and do somewhat worse on the rotation test. From Figure 1(a), all 18 directions have motion and no direction is missing or rare, so every direction that a mirrored or rotated video produces is already well represented in training. The motion itself should be familiar, and digits should still move in the correct direction. We expect any errors to come from appearance: a mirrored/rotated digit is not a real digit, but rotated digits should seem less familiar than mirrored ones. I therefore expect $C_M$ and $E_M$ only slightly above $E^{(5)}$ at 1$\times$, and $C_R$ and $E_R$ larger, with errors showing up as blurred or distorted digit shapes rather than wrong motion.
+
+\paragraph{Speed.}
+My reach estimate is 8 pixels per step per axis (2 convolutions $\times$ 1 cell $\times$ 4 pixels per cell). From Figure 1(b), motion is concentrated between 3 and 4.5 pixels per frame (median 3.32). So 1$\times$ (3--4.5 px) is well within reach. 2$\times$ (6--9 px) straddles the 8-pixel limit and is unseen in training, so I expect noticeable degradation but not complete failure. 3$\times$ (9--13.5 px) is beyond reach and unseen in training, so I predict model A breaks down at 3$\times$: digits will blur, stall or vanish instead of moving to the right place. Because the reach is per axis, diagonal motion at 3$\times$ may degrade somewhat less than motion along the axes.
+
+\subsection*{6. Why is consistency alone not enough?}
+
+\begin{table}[H]
+\centering
+\caption{Consistency gap $C_T$ and transformed error $E_T$ at 1$\times$, $t=1$, on the test set. Model A: mean (seed 0, seed 1).}
+\label{tab:3}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+Model & $E^{(5)}$ & $C_M$ & $E_M$ & $C_R$ & $E_R$ \\
+\midrule
+A & 0.0222 (0.0225, 0.0220) & 0.00163 (0.00155, 0.00171) & 0.0228 (0.0231, 0.0226) & 0.00288 (0.00254, 0.00321) & 0.0240 (0.0240, 0.0239) \\
+Blank & 0.0426 & 0 & 0.0426 & 0 & 0.0426 \\
+Copy-last & 0.0641 & 0 & 0.0641 & 0 & 0.0641 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\textbf{Why the references are exactly consistent.} Blank outputs zeros, and a transformed zero frame is still zero. Copy-last repeats the last frame, and $T$ acts on each frame separately, so transforming before or after copying gives the same result. Neither uses any knowledge of motion.
+
+\textbf{Reading $C_T$ alone.} $C_T$ only checks whether the model agrees with itself, not whether it is right. A model can be consistent because it learned a symmetric motion rule, or because it ignores the content.
+
+\textbf{Why $E_T$ is needed.} $E_T$ measures correctness on the transformed clip. In Table~\ref{tab:3} the references have perfect consistency but the worst errors, while model A is slightly inconsistent but far more accurate. $C_T$ alone would rank the useless references first; only the pair ($C_T$, $E_T$) shows a model that is both consistent and correct.
+
+\subsection*{7. How does the motion change under a transformation?}
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{../question-2/figures/fig3a.pdf}
+\end{minipage}\hfill
+\begin{minipage}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{../question-2/figures/fig3b.pdf}
+\end{minipage}\\[4pt]
+\begin{minipage}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{../question-2/figures/fig3c.pdf}
+\end{minipage}\hfill
+\begin{minipage}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{../question-2/figures/fig3d.pdf}
+\end{minipage}
+\caption{The two test videos with the largest per-video $C_M$ and the two with the largest $C_R$ for seed-0 model A (panels a--d from left to right and top to bottom). Rows: (1) $X \mid f(X)$; (2) $T(X) \mid T(Y)$; (3) $T(X) \mid f(T(X))$; (4) $T(X) \mid T(f(X))$.
+(a) $T=M$, test video 269, $C_M = 0.00432$, $E_M = 0.0331$; GIF: \texttt{gifs/fig3a\_M\_test269.gif}.
+(b) $T=M$, test video 499, $C_M = 0.00379$, $E_M = 0.0264$; GIF: \texttt{gifs/fig3b\_M\_test499.gif}.
+(c) $T=R$, test video 31, $C_R = 0.00656$, $E_R = 0.0334$; GIF: \texttt{gifs/fig3c\_R\_test31.gif}.
+(d) $T=R$, test video 150, $C_R = 0.00626$, $E_R = 0.0298$; GIF: \texttt{gifs/fig3d\_R\_test150.gif}.}
+\label{fig:3}
+\end{figure}
+
+We use test video 31 under rotation (Figure~\ref{fig:3}c), the video with the largest $C_R$.
+
+\textbf{Ground truth (row 2).} Both rotated digits start near the bottom. The 5 moves up; the 3 moves down, bounces off the bottom wall and rises.
+
+\textbf{Same motion (rows 3 and 4).} Both rows move both digits correctly, including the bounce.
+
+\textbf{Different shapes.} Row 4 (original video, prediction rotated) draws smooth, elongated streaks. Row 3 (rotated video) draws rounder, blockier blobs with $4\times4$ patch texture, unrecognisable by $h=5$. The same digits at the same positions are drawn differently depending only on orientation.
+
+\textbf{Conclusion.} The motion rule carries over; the gap comes from appearance. The model has learned to draw upright digits and falls back to generic blobs for rotated ones, as expected from Q2.2.
+
+\subsection*{8. Is rotation harder than mirroring?}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../question-2/figures/fig4.pdf}
+\caption{Histograms of per-video consistency gaps $C_M$ (a) and $C_R$ (b) of seed-0 model A over the 1,000 test videos (log scale). Red lines: the videos in Figure~\ref{fig:3}.}
+\label{fig:4}
+\end{figure}
+
+\textbf{Yes.} Rotation is worse than mirroring on every measure in Table~\ref{tab:3}, for both seeds:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+ & Mirror $M$ & Rotation $R$ & Ratio $R/M$ \\
+\midrule
+Consistency gap $C_T$ & 0.00163 & 0.00288 & 1.8 \\
+Extra error $E_T - E^{(5)}$ & 0.0006 & 0.0018 & 3.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This is not driven by a few bad videos: the whole $C_R$ distribution sits to the right of $C_M$ (Figure~\ref{fig:4}), and the Figure~\ref{fig:3} videos are just its tails.
+
+\textbf{Cause: appearance, not motion.}
+\begin{itemize}[itemsep=0pt]
+  \item \emph{Motion is equally familiar} under both (Q2.1), and neither changes speed.
+  \item \emph{Appearance changes more} under rotation: a mirrored digit stays upright, a rotated one lies on its side (Q2.2).
+  \item \emph{Figure~\ref{fig:3}c agrees}: rotated digits move correctly but are drawn wrongly.
+\end{itemize}
+The larger appearance change causes the larger error, as predicted in Q2.5.
+
+\subsection*{9. At what speed does model A fail?}
+
+\begin{table}[H]
+\centering
+\caption{Model A at different speeds ($t=1$, test set). Mean (seed 0, seed 1). Blank scores $E^{(2)} = 0.0426$ at every speed.}
+\label{tab:4}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+Model & $E^{(2)}$ 1$\times$ & $E^{(2)}$ 2$\times$ & $E^{(2)}$ 3$\times$ & $E^{(5)}$ 1$\times$ & $E^{(5)}$ 2$\times$ \\
+\midrule
+A & 0.0189 (0.0191, 0.0186) & 0.0442 (0.0435, 0.0449) & 0.0511 (0.0509, 0.0514) & 0.0222 (0.0225, 0.0220) & 0.0484 (0.0476, 0.0493) \\
+Copy-last & 0.0548 & 0.0661 & 0.0703 & 0.0641 & 0.0719 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../question-2/figures/fig5.pdf}
+\caption{Model A (seed 0) on test video 21 (dataset index 9021) at 1$\times$, 2$\times$ and 3$\times$ ($t=1$): five input frames, then the first two predicted and true future frames. No digit overlap in any displayed frame (blob-count heuristic).}
+\label{fig:5}
+\end{figure}
+
+\textbf{Model A already fails at 2$\times$.} Its error more than doubles from 1$\times$ to 2$\times$ and is worse than a blank frame at both 2$\times$ and 3$\times$ (Table~\ref{tab:4}). It only beats Copy-last because blur is penalised less than a sharp wrong digit.
+
+\textbf{Only partly consistent with our reach estimate.} We expected the breakdown at 3$\times$, but most 2$\times$ steps (about 6.6\,px) are within 8\,px. The estimate missed two things:
+\begin{itemize}[itemsep=0pt]
+  \item \emph{Reach is an upper bound.} A 6.6\,px step relies on the weak outer taps of both kernels; the reach the model actually uses is likely smaller.
+  \item \emph{Reach is not the only limit.} Model A never saw steps above about 5\,px (Figure~\ref{fig:1}b), so it never learned to produce them.
+\end{itemize}
+
+\textbf{What the failure looks like (Figure~\ref{fig:5}).}
+\begin{itemize}[itemsep=0pt]
+  \item \emph{Stalling:} at 2$\times$ and 3$\times$ the digits stay near their last input positions while the true digits move much further. The model applies roughly the short steps it learned at 1$\times$, not the true velocity.
+  \item \emph{Blur:} shapes dissolve into soft blobs, the cheapest MSE hedge when the position is uncertain.
+\end{itemize}
+No digit is duplicated or vanishes: the model behaves like a blurred Copy-last, which is why its error lies between Blank and Copy-last.
+
+\subsection*{10. Unfamiliar motion or limited reach?}
+
+\textbf{From these results alone, we cannot tell.} For model A, fast motion is both \emph{unfamiliar} (never seen in training) and close to or beyond its \emph{reach}. Both explanations predict the same errors and stalling (Table~\ref{tab:4}, Figure~\ref{fig:5}). The 2$\times$ failure hints at unfamiliarity, but reach is only an upper bound.
+
+\textbf{Proposed experiment.} Change one factor at a time, keeping data, protocol and seeds fixed:
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+Model & Architecture & Training speeds & Tests \\
+\midrule
+A & reach 8\,px & 1$\times$ only & baseline \\
+C & reach 8\,px (same as A) & 1$\times$, 2$\times$, 3$\times$ & removes unfamiliarity only \\
+D & reach $>$ 8\,px, similar size & 1$\times$, 2$\times$, 3$\times$ & also removes the reach limit \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Compare $E^{(2)}$ at 2$\times$ (mostly within reach) and 3$\times$ (mostly beyond):
+\begin{itemize}[itemsep=0pt]
+  \item \emph{C fixes it:} unfamiliar motion.
+  \item \emph{C fails, D fixes it:} reach; more data cannot extend it.
+  \item \emph{Neither fixes it:} another limit (capacity, task difficulty).
+\end{itemize}
+D should match C's parameter count so that only reach changes.
+
+\subsection*{11. Predictions before training B--D}
+
+\textit{This answer was written and committed before models B, C and D were trained, and is reproduced exactly as first written.}
+
+\paragraph{Model B.}
+It is trained with mirror and rotation augmentation, and will reduce $C_M$, $C_R$, $E_M$ and $E_R$, especially for rotation, because those gaps come from unfamiliar digit appearance, but it will not help at 2$\times$ or 3$\times$ since it still only sees 1$\times$ motion.
+
+\paragraph{Model C.}
+It is trained on 2$\times$ and 3$\times$ windows, will fix 2$\times$, where motion is mostly within the 8-pixel reach and the failure is due to unfamiliar speed, but will still do poorly at 3$\times$ because those displacements exceed what the architecture can carry in one step.
+
+\paragraph{Model D.}
+It has a larger reach and the same speed augmentation, and will also fix 3x.
+
+\subsection*{12. Model D: design and reach}
+
+\textbf{Design.} Model D is model A with \textbf{dilation 2} (padding 2) in the layer-2 ConvLSTM convolution; layer 1 keeps dilation 1. Everything else is unchanged: patch size 4, 64 channels per layer, one convolution for all gates, the $1\times1$ head, the 9-step rollout, and the training protocol (with speed augmentation, as for C). Dilation adds no weights, so D has \textbf{480,784} parameters (limit: 721,176). C and D therefore differ only in reach.
+
+\textbf{Reach.} Same conventions as Q2.3; a dilation-2 convolution moves information by up to 2 cells:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Path to $\hat{x}_{\tau+1}$ & Model A & Model D & Model D (px) \\
+\midrule
+$u_\tau \to$ layer 1 $\to$ layer 2 $\to$ output & $1 + 1 = 2$ cells & $1 + 2 = 3$ cells & 12 \\
+$h^{(1)}_{\tau-1} \to$ layer 1 $\to$ layer 2 $\to$ output & $1 + 1 = 2$ cells & $1 + 2 = 3$ cells & 12 \\
+$h^{(2)}_{\tau-1} \to$ layer 2 $\to$ output & 1 cell & 2 cells & 8 \\
+\midrule
+\textbf{Longest path} & \textbf{8\,px} & \textbf{12\,px} & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{D's reach is 12\,px per step}, strictly larger than A's 8, and covers most of the 3$\times$ range.
+
+\textbf{Why mixed dilation.} Offsets $\{0,\pm1\}$ (layer 1) plus $\{0,\pm2\}$ (layer 2) cover every offset from $-3$ to $+3$ cells. Dilation 2 in \emph{both} layers would reach 16\,px but only move information by even cell offsets, so a digit moving into the next cell (typical at 1$\times$) could never be tracked (``gridding'').
+
+\textbf{Selection (validation split only).}
+
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llcccl}
+\toprule
+Candidate & Change from A & Params & Reach & $E^{(5)}$ 1$\times$ / $E^{(2)}$ 3$\times$ (seed 0; seed 1) & Outcome \\
+\midrule
+C (reference) & none & 480,784 & 8\,px & 0.0269 / 0.0330; 0.0260 / 0.0325 & -- \\
+dil2 & dilation 2 in both layers & 480,784 & 16\,px & stuck (10 epochs) & rejected: gridding \\
+p8 & patch size 8 & 594,496 & 16\,px & stuck & rejected: did not train \\
+k5h46 & $5\times5$ kernels, 46 channels & 709,520 & 16\,px & stuck & rejected: did not train \\
+k5h40 & $5\times5$ kernels, 40 channels & 544,976 & 16\,px & 0.0276 / 0.0309; stuck & rejected: unreliable \\
+\textbf{d12} & \textbf{dilation 1, then 2} & \textbf{480,784} & \textbf{12\,px} & \textbf{0.0274 / 0.0320; 0.0269 / 0.0320} & \textbf{chosen} \\
+\bottomrule
+\end{tabular}}
+
+\smallskip
+{\small Validation split, $t=1$, final epoch. Blank scores about 0.0395. ``Stuck'' = stayed at the Blank level for the whole run.}
+\end{center}
+
+Several designs got stuck predicting near-blank frames, a known trap for MSE with a sigmoid output on sparse images. D must keep A's protocol, so we could not change the optimiser or initialisation; training reliably became part of the choice. d12 trained on both seeds, improved 3$\times$ over C on both, and changes only the reach.
+
+\subsection*{13. Which failure has which cause?}
+
+\begin{table}[H]
+\centering
+\caption{Models A--D on the test set ($t=1$). Mean (seed 0, seed 1). $C_T$, $E_T$ and $E^{(5)}$ at 1$\times$; cross-speed comparisons use $E^{(2)}$. Hardware: Tesla T4 (training and inference).}
+\label{tab:5}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccccccc}
+\toprule
+Model & $E^{(5)}$ 1$\times$ & $C_M$ & $E_M$ & $C_R$ & $E_R$ & $E^{(2)}$ 1$\times$ & $E^{(2)}$ 2$\times$ & $E^{(2)}$ 3$\times$ & Params & Train s/epoch & Inference s \\
+\midrule
+A & 0.0222 (0.0225, 0.0220) & 0.00163 (0.00155, 0.00171) & 0.0228 (0.0231, 0.0226) & 0.00288 (0.00254, 0.00321) & 0.0240 (0.0240, 0.0239) & 0.0189 (0.0191, 0.0186) & 0.0442 (0.0435, 0.0449) & 0.0511 (0.0509, 0.0514) & 480,784 & 10.7 (10.7, 10.7) & 0.401 (0.400, 0.402) \\
+B & 0.0229 (0.0233, 0.0224) & 0.00111 (0.00106, 0.00115) & 0.0229 (0.0234, 0.0224) & 0.00134 (0.00141, 0.00128) & 0.0228 (0.0232, 0.0223) & 0.0192 (0.0197, 0.0187) & 0.0431 (0.0433, 0.0429) & 0.0490 (0.0496, 0.0483) & 480,784 & 10.8 (10.7, 10.8) & 0.425 (0.421, 0.429) \\
+C & 0.0267 (0.0272, 0.0263) & 0.00135 (0.00117, 0.00154) & 0.0269 (0.0273, 0.0265) & 0.00258 (0.00220, 0.00295) & 0.0279 (0.0282, 0.0276) & 0.0232 (0.0237, 0.0227) & 0.0288 (0.0292, 0.0285) & 0.0333 (0.0335, 0.0331) & 480,784 & 10.1 (10.1, 10.1) & 0.422 (0.423, 0.422) \\
+D & 0.0275 (0.0277, 0.0272) & $7.31\times10^{-4}$ ($7.97\times10^{-4}$, $6.66\times10^{-4}$) & 0.0276 (0.0279, 0.0274) & 0.00176 (0.00169, 0.00182) & 0.0284 (0.0285, 0.0283) & 0.0248 (0.0249, 0.0246) & 0.0290 (0.0292, 0.0288) & 0.0326 (0.0326, 0.0325) & 480,784 & 14.8 (14.7, 14.9) & 0.602 (0.602, 0.602) \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Each comparison changes one thing: A$\to$B adds appearances, A$\to$C adds faster motion, C$\to$D adds reach. The labels follow from Table~\ref{tab:5}:
+
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllllc}
+\toprule
+Failure & Label & Comparison & Measure & Before $\to$ After & Change \\
+\midrule
+Mirror   & appearance               & A $\to$ B & $C_M$                & 0.00163 $\to$ 0.00111 & $-32\%$ \\
+         &                          & A $\to$ B & $E_M - E^{(5)}$      & 0.0006 $\to$ 0.0000   & gap closed \\
+Rotation & appearance               & A $\to$ B & $C_R$                & 0.00288 $\to$ 0.00134 & $-53\%$ \\
+         &                          & A $\to$ B & $E_R - E^{(5)}$      & 0.0018 $\to$ 0.0000   & gap closed \\
+2$\times$ & unfamiliar motion       & A $\to$ C & $E^{(2)}$ 2$\times$  & 0.0442 $\to$ 0.0288   & $-35\%$ \\
+         &                          & C $\to$ D & $E^{(2)}$ 2$\times$  & 0.0288 $\to$ 0.0290   & none \\
+3$\times$ & mostly unfamiliar motion & A $\to$ C & $E^{(2)}$ 3$\times$ & 0.0511 $\to$ 0.0333   & $-35\%$ \\
+         & (small part reach)       & C $\to$ D & $E^{(2)}$ 3$\times$  & 0.0333 $\to$ 0.0326   & $-2\%$ \\
+\bottomrule
+\end{tabular}}
+\end{center}
+
+\textbf{Mirror and rotation: appearance.} B sees the same motion as A but with transformed digits, and that alone closes the accuracy gap and cuts the consistency gaps, most for rotation. Speed augmentation (C) does not.
+
+\textbf{2$\times$: unfamiliar motion.} C fixes it; extra reach (D) adds nothing. A's architecture could already carry this motion; it had just never seen it.
+
+\textbf{3$\times$: mostly unfamiliar motion, a little reach.} C removes most of the failure. D's further gain is small but consistent across both seeds. This contradicts our Q2.11 prediction that C would still fail at 3$\times$.
+
+\textbf{If C had failed at 3$\times$ while D succeeded,} the cause would be reach. More data cannot fix that: training only changes weights on paths that exist, and if no path links a digit's old position to its new one within a step, no weights can. Only an architectural change adds such paths.
+
+\textbf{Why C coped anyway.} Some 3$\times$ steps are within reach (slower and diagonal motion); over two steps the state can spread a digit's position into a blurry region; and a blurry guess already scores well under MSE. C and D are still clearly worse at 3$\times$ than at 1$\times$; since D barely helps, this remaining gap is likely task difficulty (longer steps, more bounces) and scarce 3$\times$ training windows, not reach.
+
+\subsection*{14. Did robustness cost accuracy at 1$\times$?}
+
+\textbf{Yes; the size depends on the change:}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Model & $E^{(5)}$ 1$\times$ & Change & Average $E^{(2)}$ & Change \\
+\midrule
+A & 0.0222 & -- & 0.0381 & -- \\
+B & 0.0229 & $+3\%$ & 0.0371 & $-3\%$ \\
+C & 0.0267 & $+20\%$ & \textbf{0.0284} & $-25\%$ \\
+D & 0.0275 & $+24\%$ & 0.0288 & $-24\%$ \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+{\small From Table~\ref{tab:5}. Change relative to A. Average $E^{(2)}$ = mean over 1$\times$, 2$\times$, 3$\times$.}
+\end{center}
+
+\textbf{Why.} All four models have the same capacity, but B covers eight orientations and C and D cover three speeds; C and D also see 1$\times$ in only a third of their windows.
+
+\textbf{Was it worth it?}
+\begin{itemize}[itemsep=0pt]
+  \item \emph{B: yes.} A small 1$\times$ cost buys closed accuracy gaps and much smaller consistency gaps.
+  \item \emph{C: yes, unless only 1$\times$ matters.} A is worse than a blank frame whenever the speed changes; C is robust across speeds.
+  \item \emph{D over C: hardly.} Its 3$\times$ gain is outweighed by its 1$\times$ loss, and dilated convolutions make it slower (Table~\ref{tab:5}). Its value here is as evidence that reach was not A's main limit.
+\end{itemize}
+
+\subsection*{15. Learned versus built-in symmetry}
+
+\begin{table}[H]
+\centering
+\caption{Symmetrised models on the test set ($t=1$). Mean (seed 0, seed 1). Training time is that of the underlying model; symmetrisation needs no extra training. Inference includes all eight transformations, forward passes, inverse transformations and the averaging. Final model: symmetrised D.}
+\label{tab:6}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccccccc}
+\toprule
+Model & $E^{(5)}$ 1$\times$ & $C_M$ & $E_M$ & $C_R$ & $E_R$ & $E^{(2)}$ 1$\times$ & $E^{(2)}$ 2$\times$ & $E^{(2)}$ 3$\times$ & Params & Train s/epoch & Inference s \\
+\midrule
+sym B & 0.0223 (0.0227, 0.0218) & $7.63\times10^{-17}$ ($8.24\times10^{-17}$, $7.03\times10^{-17}$) & 0.0223 (0.0227, 0.0218) & $6.17\times10^{-17}$ ($6.68\times10^{-17}$, $5.67\times10^{-17}$) & 0.0223 (0.0227, 0.0218) & 0.0187 (0.0192, 0.0183) & 0.0425 (0.0427, 0.0423) & 0.0482 (0.0488, 0.0476) & 480,784 & 10.8 (10.7, 10.8) & 3.42 (3.45, 3.40) \\
+\textbf{sym D} & 0.0274 (0.0276, 0.0272) & $5.93\times10^{-17}$ ($5.48\times10^{-17}$, $6.38\times10^{-17}$) & 0.0274 (0.0276, 0.0272) & $4.62\times10^{-17}$ ($4.28\times10^{-17}$, $4.96\times10^{-17}$) & 0.0274 (0.0276, 0.0272) & 0.0247 (0.0248, 0.0246) & 0.0290 (0.0292, 0.0289) & 0.0325 (0.0325, 0.0325) & 480,784 & 14.8 (14.7, 14.9) & 4.84 (4.83, 4.84) \\
+sym D+B & 0.0273 (0.0272, 0.0274) & $7.30\times10^{-17}$ ($6.30\times10^{-17}$, $8.30\times10^{-17}$) & 0.0273 (0.0272, 0.0274) & $5.82\times10^{-17}$ ($5.05\times10^{-17}$, $6.60\times10^{-17}$) & 0.0273 (0.0272, 0.0274) & 0.0242 (0.0243, 0.0242) & 0.0290 (0.0292, 0.0287) & 0.0325 (0.0325, 0.0324) & 480,784 & 15.9 (15.6, 16.1) & 4.80 (4.72, 4.88) \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\textbf{Why built-in symmetry is exact.} For $\bar f(X) = \frac{1}{8}\sum_{g\in G} g^{-1}\big(f(g(X))\big)$ and $T \in G$, substitute $g' = gT$ (so $g^{-1} = T g'^{-1}$):
+\[
+\bar f(T(X)) = \frac{1}{8}\sum_{g\in G} g^{-1}\big(f(gT(X))\big)
+= \frac{1}{8}\sum_{g'\in G} T\,g'^{-1}\big(f(g'(X))\big) = T\big(\bar f(X)\big).
+\]
+$g'$ runs over all of $G$ because $G$ is a group, and $T$ (a pixel permutation) moves out of the average. So $C_M = C_R = 0$ for \emph{any} $f$; the measured $\sim10^{-16}$ is rounding. Since $T$ only permutes pixels, also $E_T = E^{(5)}$ exactly (Table~\ref{tab:6}).
+
+\textbf{Comparison.}
+
+\begin{center}
+\begin{tabular}{lcccccc}
+\toprule
+Model & Symmetry & $C_M$ & $C_R$ & $E^{(5)}$ & $E_R$ & Inference s \\
+\midrule
+A & none & 0.00163 & 0.00288 & 0.0222 & 0.0240 & 0.401 \\
+B & learned & 0.00111 & 0.00134 & 0.0229 & 0.0228 & 0.425 \\
+sym B & built in & $\approx 10^{-16}$ & $\approx 10^{-16}$ & 0.0223 & 0.0223 & 3.42 \\
+\midrule
+D & none & $7.31\times10^{-4}$ & 0.00176 & 0.0275 & 0.0284 & 0.602 \\
+D+B & learned & $8.47\times10^{-4}$ & $7.85\times10^{-4}$ & 0.0276 & 0.0276 & 0.576 \\
+sym D & built in & $\approx 10^{-16}$ & $\approx 10^{-16}$ & 0.0274 & 0.0274 & 4.84 \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+{\small Means over seeds, test set, 1$\times$; from Tables~\ref{tab:5} and~\ref{tab:6} and the D+B evaluation.}
+\end{center}
+
+\begin{itemize}[itemsep=0pt]
+  \item \emph{Consistency:} learned symmetry only shrinks the gaps (D+B's $C_M$ even rises); augmentation gives no guarantee. Built-in symmetry is exact.
+  \item \emph{Original clips:} built-in symmetry costs nothing and slightly helps; learned symmetry costs a little for B.
+  \item \emph{Transformed clips:} built-in gives $E_T = E^{(5)}$ by construction; learned gets close.
+  \item \emph{Inference:} built-in needs eight forward passes ($\approx8\times$ slower); learned costs nothing extra.
+\end{itemize}
+
+\textbf{When averaging hurts.} If the base model is confident but inconsistent (sharp digits in different places per orientation), the average shows faint ghost copies. It would also force a wrong symmetry if the true dynamics were not symmetric (e.g.\ gravity). \textbf{Here it did not hurt}: every symmetrised model matches or beats its base model. The base models' $C_T$ is small next to their error, so the eight predictions mostly agree and averaging acts like a small ensemble.
+
+\subsection*{16. Does the final model fix the Q2.7 video?}
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{../question-2/figures/fig6a_a.pdf}
+\end{minipage}\hfill
+\begin{minipage}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{../question-2/figures/fig6a_b.pdf}
+\end{minipage}\\[4pt]
+\begin{minipage}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{../question-2/figures/fig6a_c.pdf}
+\end{minipage}\hfill
+\begin{minipage}{0.49\textwidth}
+  \includegraphics[width=\linewidth]{../question-2/figures/fig6a_d.pdf}
+\end{minipage}\\[6pt]
+\includegraphics[width=0.85\textwidth]{../question-2/figures/fig6b.pdf}
+\caption{Final model (symmetrised D, seed 0). (a) Figure~\ref{fig:3} repeated on the same videos (top two rows, panels a--d from left to right and top to bottom); rows as in Figure~\ref{fig:3}. Panel a: $T=M$, test video 269, $C_M = 9.16\times10^{-17}$, $E_M = 0.0389$; GIF: \texttt{gifs/fig6a\_a\_M\_test269.gif}. Panel b: $T=M$, test video 499, $C_M = 5.02\times10^{-17}$, $E_M = 0.0281$; GIF: \texttt{gifs/fig6a\_b\_M\_test499.gif}. Panel c: $T=R$, test video 31, $C_R = 3.93\times10^{-17}$, $E_R = 0.0307$; GIF: \texttt{gifs/fig6a\_c\_R\_test31.gif}. Panel d: $T=R$, test video 150, $C_R = 7.07\times10^{-17}$, $E_R = 0.0397$; GIF: \texttt{gifs/fig6a\_d\_R\_test150.gif}. (b) Bottom: Figure~\ref{fig:5} repeated on test video 21 (dataset index 9021) at 1$\times$, 2$\times$ and 3$\times$ ($t=1$).}
+\label{fig:6}
+\end{figure}
+
+Test video 31 under rotation (Figure~\ref{fig:6}a, panel c; compare Figure~\ref{fig:3}c):
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Video 31, $T = R$ & Model A & Final model & Change \\
+\midrule
+Per-video $C_R$ & 0.00656 & $3.93\times10^{-17}$ & exact \\
+Per-video $E_R$ & 0.0334 & 0.0307 & $-8\%$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{itemize}[itemsep=0pt]
+  \item \emph{Consistency: fixed exactly}, by symmetrisation. Rows 3 and 4 are now identical: the answer cannot depend on orientation.
+  \item \emph{Motion: still correct.} The 5 rises and the 3 bounces, as with model A.
+  \item \emph{Shape: not fixed.} The digits are softer, blockier patches than with model A, because D is less sharp at 1$\times$ (Table~\ref{tab:5}) and averaging removes detail the orientations disagree on. $E_R$ still improves, since a soft patch in the right place costs less under MSE.
+  \item \emph{Speed (Figure~\ref{fig:6}b):} at 3$\times$ the blobs no longer stall at the last input positions (compare Figure~\ref{fig:5}), thanks to speed augmentation and, slightly, D's reach. They are very blurry and spread out by frame 19.
+\end{itemize}
+
+\textbf{Summary.} Symmetrisation fixed the inconsistency, speed training fixed the stalling, and nothing fixed the blur: the final model knows where the digits go, but not what they look like.
 % ---------------------------------------------------------
 % GENERATIVE AI USAGE (MANDATORY SECTION)
 % ---------------------------------------------------------

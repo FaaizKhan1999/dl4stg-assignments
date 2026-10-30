@@ -1,0 +1,6 @@
+Figure 6: (a) Figure 3 repeated with the final model (symmetrised D_d12, seed 0) on the same videos:
+(a) T = M, test video 269, C_M = 9.16e-17, E_M = 0.0389; GIF: gifs/fig6a_a_M_test269.gif
+(b) T = M, test video 499, C_M = 5.02e-17, E_M = 0.0281; GIF: gifs/fig6a_b_M_test499.gif
+(c) T = R, test video 31, C_R = 3.93e-17, E_R = 0.0307; GIF: gifs/fig6a_c_R_test31.gif
+(d) T = R, test video 150, C_R = 7.07e-17, E_R = 0.0397; GIF: gifs/fig6a_d_R_test150.gif
+(b) Figure 5 repeated on the same video: final model (symmetrised D_d12, seed 0) on test video 21 (dataset index 9021) at 1×, 2× and 3× (t = 1): five input frames, then the first two predicted and true future frames. No digit overlap in any displayed frame (blob-count heuristic).

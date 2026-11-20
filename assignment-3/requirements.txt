@@ -1,0 +1,9 @@
+numpy
+pandas
+tables
+h5py
+scipy
+torch
+matplotlib
+jupyter
+kaggle

@@ -1,0 +1,13 @@
+{
+  "id": "focusedkognition/ai651-a3-stgnn",
+  "title": "ai651-a3-stgnn",
+  "code_file": "run_all.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": false,
+  "dataset_sources": ["focusedkognition/largest-sd-processed"],
+  "competition_sources": [],
+  "kernel_sources": []
+}

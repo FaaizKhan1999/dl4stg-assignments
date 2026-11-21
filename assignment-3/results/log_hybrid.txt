@@ -1,0 +1,35 @@
+train: 35136 steps, 35125 windows
+val: 8640 steps, 8629 windows
+test: 26400 steps, 26389 windows
+hybrid: 27989 params on cuda
+ep 01 | train MAE(z) 0.1467 | val MAE 56.63 RMSE 93.85 | 22.4s
+ep 02 | train MAE(z) 0.1110 | val MAE 53.04 RMSE 87.73 | 21.9s
+ep 03 | train MAE(z) 0.1061 | val MAE 51.56 RMSE 85.84 | 21.8s
+ep 04 | train MAE(z) 0.1022 | val MAE 49.74 RMSE 83.25 | 21.7s
+ep 05 | train MAE(z) 0.0997 | val MAE 49.40 RMSE 82.54 | 21.8s
+ep 06 | train MAE(z) 0.0975 | val MAE 48.19 RMSE 81.09 | 21.8s
+ep 07 | train MAE(z) 0.0962 | val MAE 49.68 RMSE 81.47 | 21.9s
+ep 08 | train MAE(z) 0.0957 | val MAE 47.09 RMSE 79.81 | 21.9s
+ep 09 | train MAE(z) 0.0948 | val MAE 48.65 RMSE 80.29 | 21.9s
+ep 10 | train MAE(z) 0.0941 | val MAE 47.36 RMSE 79.33 | 21.8s
+ep 11 | train MAE(z) 0.0937 | val MAE 46.31 RMSE 78.02 | 21.8s
+ep 12 | train MAE(z) 0.0928 | val MAE 47.09 RMSE 77.49 | 21.8s
+ep 13 | train MAE(z) 0.0925 | val MAE 46.46 RMSE 77.44 | 21.8s
+ep 14 | train MAE(z) 0.0919 | val MAE 45.42 RMSE 76.59 | 21.8s
+ep 15 | train MAE(z) 0.0917 | val MAE 45.19 RMSE 76.22 | 21.8s
+ep 16 | train MAE(z) 0.0912 | val MAE 45.54 RMSE 76.65 | 21.8s
+ep 17 | train MAE(z) 0.0908 | val MAE 45.09 RMSE 75.76 | 21.8s
+ep 18 | train MAE(z) 0.0905 | val MAE 45.21 RMSE 75.38 | 21.8s
+ep 19 | train MAE(z) 0.0902 | val MAE 45.10 RMSE 75.03 | 21.8s
+ep 20 | train MAE(z) 0.0898 | val MAE 45.26 RMSE 75.77 | 21.8s
+ep 21 | train MAE(z) 0.0894 | val MAE 44.40 RMSE 74.22 | 21.8s
+ep 22 | train MAE(z) 0.0891 | val MAE 44.78 RMSE 74.59 | 21.8s
+ep 23 | train MAE(z) 0.0890 | val MAE 43.77 RMSE 73.49 | 21.8s
+ep 24 | train MAE(z) 0.0885 | val MAE 43.63 RMSE 73.21 | 21.8s
+ep 25 | train MAE(z) 0.0885 | val MAE 44.02 RMSE 73.53 | 21.8s
+ep 26 | train MAE(z) 0.0879 | val MAE 43.49 RMSE 72.67 | 21.8s
+ep 27 | train MAE(z) 0.0879 | val MAE 43.60 RMSE 72.77 | 21.7s
+ep 28 | train MAE(z) 0.0877 | val MAE 43.64 RMSE 72.64 | 21.7s
+ep 29 | train MAE(z) 0.0873 | val MAE 43.93 RMSE 72.77 | 21.8s
+ep 30 | train MAE(z) 0.0871 | val MAE 43.64 RMSE 72.26 | 21.8s
+TEST  MAE 52.40  RMSE 83.47  | train time 10.9 min | alpha 0.015

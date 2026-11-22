@@ -114,17 +114,23 @@ def clean(flow15):
 
 
 def plot_week(flow15, observed, start="2020-02-03", days=7):
+    end = pd.Timestamp(start) + pd.Timedelta(days=days) - pd.Timedelta("15min")
     nan_frac = (~observed).mean()
     clean_ids = nan_frac[nan_frac < 0.01].index
     means = flow15[clean_ids].mean()
     busy = means.idxmax()
     typical = (means - means.median()).abs().idxmin()
-    gappy_pool = nan_frac[(nan_frac > 0.05) & (nan_frac < 0.5)].index
+    wk = observed.loc[start:end]
+    wk_frac = wk.mean()                                   # observed share within the plotted week
+    gappy_pool = nan_frac[(nan_frac > 0.05) & (nan_frac < 0.5)
+                          & (wk_frac.reindex(nan_frac.index) > 0.3)
+                          & (wk_frac.reindex(nan_frac.index) < 0.95)].index
+    if len(gappy_pool) == 0:                              # fall back: any sensor with some gaps that week
+        gappy_pool = wk_frac[(wk_frac > 0.3) & (wk_frac < 0.99)].index
     picks = [(busy, "busiest"), (typical, "median-volume")]
     if len(gappy_pool):
         picks.append((gappy_pool[0], "with gaps"))
 
-    end = pd.Timestamp(start) + pd.Timedelta(days=days) - pd.Timedelta("15min")
     fig, ax = plt.subplots(figsize=(12, 4))
     for sid, label in picks:
         ax.plot(flow15.loc[start:end, sid], label=f"{sid} ({label})", lw=1)
